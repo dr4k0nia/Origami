@@ -18,12 +18,9 @@ namespace Origami
         private static void Main( string[] args )
         {
             var assemblyLocation = Assembly.GetExecutingAssembly().Location;
+            var assemblyData = File.ReadAllBytes( assemblyLocation );
 
-            var stream = new StreamReader( assemblyLocation ).BaseStream;
-            var binaryReader = new BinaryReader( stream );
-            var file = binaryReader.ReadBytes( File.ReadAllBytes( assemblyLocation ).Length );
-
-            var mod = ModuleDefMD.Load( file );
+            var mod = ModuleDefMD.Load( assemblyData );
             var peImage = mod.Metadata.PEImage;
 
             for ( var i = 0; i < peImage.ImageSectionHeaders.Count; i++ )
@@ -47,7 +44,7 @@ namespace Origami
                         entryPoint.Invoke( null, parameters );
                     }
                     else
-                        throw new Exception( "Origami could not find a valid EntryPoint to invoke" );
+                        throw new EntryPointNotFoundException( "Origami could not find a valid EntryPoint to invoke" );
                 }
             }
         }
@@ -69,13 +66,12 @@ namespace Origami
 
         private static byte[] Decompress( byte[] data )
         {
-            var destination = new MemoryStream();
-            using ( var deflateStream = new DeflateStream( new MemoryStream( data ), CompressionMode.Decompress ) )
+            using ( var destination = new MemoryStream() )
             {
-                deflateStream.CopyTo( destination );
+                using ( var deflateStream = new DeflateStream( new MemoryStream( data ), CompressionMode.Decompress ) )
+                    deflateStream.CopyTo( destination );
+                return destination.ToArray();
             }
-
-            return destination.ToArray();
         }
     }
 
@@ -94,11 +90,9 @@ namespace Origami
         {
             var assemblyLocation = Assembly.GetExecutingAssembly().Location;
 
-            var stream = new StreamReader( assemblyLocation ).BaseStream;
-            var binaryReader = new BinaryReader( stream );
-            var file = binaryReader.ReadBytes( File.ReadAllBytes( assemblyLocation ).Length );
+            var assemblyData = File.ReadAllBytes( assemblyLocation );
 
-            var mod = ModuleDefMD.Load( file );
+            var mod = ModuleDefMD.Load( assemblyData );
             var peImage = mod.Metadata.PEImage;
 
             for ( var i = 0; i < peImage.ImageSectionHeaders.Count; i++ )
@@ -122,7 +116,7 @@ namespace Origami
                         entryPoint.Invoke( null, parameters );
                     }
                     else
-                        throw new Exception( "DependencyResolver could not invoke dependency" );
+                        throw new EntryPointNotFoundException( "Origami could not find a valid EntryPoint to invoke" );
                 }
             }
         }
@@ -144,13 +138,12 @@ namespace Origami
 
         private static byte[] Decompress( byte[] data )
         {
-            var destination = new MemoryStream();
-            using ( var deflateStream = new DeflateStream( new MemoryStream( data ), CompressionMode.Decompress ) )
+            using ( var destination = new MemoryStream() )
             {
-                deflateStream.CopyTo( destination );
+                using ( var deflateStream = new DeflateStream( new MemoryStream( data ), CompressionMode.Decompress ) )
+                    deflateStream.CopyTo( destination );
+                return destination.ToArray();
             }
-
-            return destination.ToArray();
         }
     }
 }

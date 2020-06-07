@@ -11,7 +11,7 @@ namespace Origami
     internal static class Program
     {
         private static byte[] payload;
-
+        
         private static void Main( string[] args )
         {
             bool inject = false;
@@ -25,7 +25,7 @@ namespace Origami
                 return;
             }
 
-            if ( args.Contains("-inject") )
+            if ( args.Contains( "-inject" ) )
             {
                 if ( args.Length == 3 )
                 {
@@ -34,7 +34,7 @@ namespace Origami
                     file = args[1];
                 }
                 else
-                    throw new Exception( "Invalid parameters" );
+                    throw new ArgumentException( "Invalid parameters" );
             }
             else
             {
@@ -42,94 +42,89 @@ namespace Origami
             }
 
             if ( !File.Exists( file ) )
-                throw new Exception( $"Could not find file: {file}" );
+                throw new FileNotFoundException( $"Could not find file: {file}" );
 
-            if ( !File.Exists( "dnlib.dll" ) )
-                throw new Exception( "Missing Dependency dnlib.dll" );
+            var dnlibPath = Utils.GetDnlibPath();
+            if ( !File.Exists( dnlibPath ) )
+                throw new FileNotFoundException( "Missing Dependency dnlib.dll" );
 
             var originModule = ModuleDefMD.Load( file );
 
             if ( !Utils.IsExe( originModule ) )
                 throw new Exception( "Invalid file format => supported are .net executables" );
 
+            ModuleDef targetModule;
             if ( inject )
             {
                 var payloadFile = args[2];
-                if (!File.Exists( payloadFile ))
-                    throw new Exception($"Could not find payload: {payloadFile}");
+                if ( !File.Exists( payloadFile ) )
+                    throw new FileNotFoundException( $"Could not find payload: {payloadFile}" );
                 //Use the specified payload file as payload
                 payload = File.ReadAllBytes( payloadFile );
-                
-                AddCompressedDependencies( originModule, "dnlib.dll" );
+
+                AddCompressedDependencies( originModule, dnlibPath );
                 ModifyModule( originModule, true );
 
-                var writerOptions = new ModuleWriterOptions( originModule );
-
-                writerOptions.WriterEvent += OnWriterEvent;
-
-                originModule.Write( file.Replace( ".exe", "_origami.exe" ), writerOptions );
-
-                Console.WriteLine( "Saving module..." );
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine( "Done" );
+                targetModule = originModule;
             }
             else
             {
                 //input file as payload
                 payload = File.ReadAllBytes( file );
-                
+
                 //Generate stub based on origin file
                 Console.WriteLine( "Generating new stub module" );
                 ModuleDefUser stubModule = CreateStub( originModule );
 
-                AddCompressedDependencies( stubModule, "dnlib.dll" );
+                AddCompressedDependencies( stubModule, dnlibPath );
                 ModifyModule( stubModule, false );
 
-                var stubWriterOptions = new ModuleWriterOptions( stubModule );
-
-                stubWriterOptions.WriterEvent += OnWriterEvent;
-
-                Console.WriteLine( "Saving module..." );
-                stubModule.Write( file.Replace( ".exe", "_origami.exe" ), stubWriterOptions );
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine( "Finished" );
+                targetModule = stubModule;
             }
+
+            var writerOptions = new ModuleWriterOptions( targetModule );
+
+            writerOptions.WriterEvent += OnWriterEvent;
+
+            targetModule.Write( file.Replace( ".exe", "_origami.exe" ), writerOptions );
+
+            Console.WriteLine( "Saving module..." );
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine( "Finished" );
 
             Console.ReadKey();
         }
 
         private static byte[] Compress( byte[] data )
         {
-            var mStream = new MemoryStream();
-            using ( var dStream = new DeflateStream( mStream, CompressionLevel.Optimal ) )
+            using ( var mStream = new MemoryStream() )
             {
-                dStream.Write( data, 0, data.Length );
+                using ( var dStream = new DeflateStream( mStream, CompressionLevel.Optimal ) )
+                    dStream.Write( data, 0, data.Length );
+                return mStream.ToArray();
             }
-
-            return mStream.ToArray();
         }
 
         private static void OnWriterEvent( object sender, ModuleWriterEventArgs e )
         {
             var writer = (ModuleWriterBase) sender;
-            switch ( e.Event )
+            if ( e.Event == ModuleWriterEvent.PESectionsCreated )
             {
-                case ModuleWriterEvent.PESectionsCreated:
-                    var section = new PESection( ".origami", 0x40000080 );
+                var section = new PESection( ".origami", 0x40000080 );
 
-                    writer.AddSection( section );
+                writer.AddSection( section );
 
-                    Console.WriteLine( "Created new pe section {0} with characteristics {1}", section.Name,
-                        section.Characteristics.ToString( "x8" ) );
+                Console.WriteLine( "Created new pe section {0} with characteristics {1}", section.Name,
+                    section.Characteristics.ToString( "x8" ) );
 
-                    section.Add( new ByteArrayChunk( Compress( payload ) ), 4 );
+                section.Add( new ByteArrayChunk( Compress( payload ) ), 4 );
 
-                    Console.WriteLine( "Wrote {0} bytes to section {1}", payload.Length.ToString(), section.Name );
-                    break;
+                Console.WriteLine( "Wrote {0} bytes to section {1}", payload.Length.ToString(), section.Name );
             }
         }
 
         #region "Binary modifications"
+
         public static ModuleDefUser CreateStub( ModuleDefMD originModule )
         {
             var stubModule =
@@ -161,9 +156,9 @@ namespace Origami
             var dependencyData = File.ReadAllBytes( fullName );
 
             var resourceData = Compress( dependencyData );
-            module.Resources.Add( new EmbeddedResource( fullName + ".compressed", resourceData ) );
+            module.Resources.Add( new EmbeddedResource( "dnlib.dll.compressed", resourceData ) );
         }
-        
+
         //Taken from ConfuserEx (Compressor)
         private static void ImportAssemblyTypeReferences( ModuleDef originModule, ModuleDef stubModule )
         {
@@ -175,7 +170,7 @@ namespace Origami
                 if ( ca.AttributeType.Scope == originModule )
                     ca.Constructor = (ICustomAttributeType) stubModule.Import( ca.Constructor );
         }
-        
+
         //Inspired by EOFAntiTamper
         private static void ModifyModule( ModuleDef module, bool callOnly )
         {
@@ -204,11 +199,11 @@ namespace Origami
                 var init = (MethodDef) members.Single( method => method.Name == "Initialize" );
                 //Add Instruction to call the init method 
                 global.Body.Instructions.Insert( 0, Instruction.Create( OpCodes.Call, init ) );
-                
+
                 var entryPoint = members.OfType<MethodDef>().Single( method => method.Name == "Main" );
                 //Set EntryPoint to Main method defined in the Loader class
                 module.EntryPoint = entryPoint;
-                
+
                 //Add STAThreadAttribute
                 var attrType = module.CorLibTypes.GetTypeRef( "System", "STAThreadAttribute" );
                 var ctorSig = MethodSig.CreateInstance( module.CorLibTypes.Void );
@@ -219,11 +214,13 @@ namespace Origami
             //Remove.ctor method because otherwise it will
             //lead to Global constructor error( e.g[MD]: Error: Global item( field, method ) must be Static. [token: 0x06000002] / [MD]: Error: Global constructor. [token: 0x06000002] )
             foreach ( var md in module.GlobalType.Methods )
+            {
                 if ( md.Name == ".ctor" )
                 {
                     module.GlobalType.Remove( md );
                     break;
                 }
+            }
         }
 
         #endregion

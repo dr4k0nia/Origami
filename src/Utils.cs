@@ -1,4 +1,7 @@
 ﻿using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
 using dnlib.DotNet;
 
 namespace Origami
@@ -7,9 +10,12 @@ namespace Origami
     {
         public static bool IsExe( ModuleDefMD module )
         {
-            if ( module.Kind == ModuleKind.Windows || module.Kind == ModuleKind.Console )
-                return true;
-            return false;
+            return module.Kind == ModuleKind.Windows || module.Kind == ModuleKind.Console;
+        }
+
+        public static string GetDnlibPath()
+        {
+            return ( from asm in AppDomain.CurrentDomain.GetAssemblies() from m in asm.Modules where m.Name == "dnlib.dll" select m.Assembly.Location ).FirstOrDefault();
         }
     }
 }
