@@ -15,5 +15,5 @@ Origami supports .net framework executables
 Structure of the Origami stub in dnSpy
 ![example output](https://i.imgur.com/9t2yO9e.png)
 
-## Thanks to
-- @mkaring for his [updated dnlib fork](https://github.com/mkaring/dnlib)
+## Dependencies
+- [dnlib](https://github.com/0xd4d/dnlib) by 0xd4d (nuget package)
