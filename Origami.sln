@@ -8,8 +8,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Origami", "src\Origami.cspr
 		{760EF471-90B1-416D-8517-303FA04D49E1} = {760EF471-90B1-416D-8517-303FA04D49E1}
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "dnlib", "dnlib\src\dnlib.csproj", "{760EF471-90B1-416D-8517-303FA04D49E1}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,10 +18,6 @@ Global
 		{3140478B-D5E1-455C-8CDB-B1CDA7A6FA94}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3140478B-D5E1-455C-8CDB-B1CDA7A6FA94}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3140478B-D5E1-455C-8CDB-B1CDA7A6FA94}.Release|Any CPU.Build.0 = Release|Any CPU
-		{760EF471-90B1-416D-8517-303FA04D49E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{760EF471-90B1-416D-8517-303FA04D49E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{760EF471-90B1-416D-8517-303FA04D49E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{760EF471-90B1-416D-8517-303FA04D49E1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
