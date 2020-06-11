@@ -14,8 +14,7 @@ namespace Origami
         /// <returns>The cloned TypeDef.</returns>
         private static TypeDefUser Clone( TypeDef origin )
         {
-            var ret = new TypeDefUser( origin.Namespace, origin.Name );
-            ret.Attributes = origin.Attributes;
+            var ret = new TypeDefUser( origin.Namespace, origin.Name ) {Attributes = origin.Attributes};
 
             if ( origin.ClassLayout != null )
                 ret.ClassLayout = new ClassLayoutUser( origin.ClassLayout.PackingSize, origin.ClassSize );
@@ -61,8 +60,7 @@ namespace Origami
         private static TypeDef PopulateContext( TypeDef typeDef, InjectContext ctx )
         {
             TypeDef ret;
-            IDnlibDef existing;
-            if ( !ctx.ImportMap.TryGetValue( typeDef, out existing ) )
+            if ( !ctx.ImportMap.TryGetValue( typeDef, out var existing ) )
             {
                 ret = Clone( typeDef );
                 ctx.ImportMap[typeDef] = ret;
@@ -260,11 +258,6 @@ namespace Origami
         private class InjectContext : ImportMapper
         {
             /// <summary>
-            ///     The importer.
-            /// </summary>
-            private readonly Importer importer;
-
-            /// <summary>
             ///     The mapping of origin definitions to injected definitions.
             /// </summary>
             public readonly Dictionary<IDnlibDef, IDnlibDef> ImportMap = new Dictionary<IDnlibDef, IDnlibDef>();
@@ -272,7 +265,7 @@ namespace Origami
             /// <summary>
             ///     The module which source type originated from.
             /// </summary>
-            public readonly ModuleDef OriginModule;
+            private readonly ModuleDef OriginModule;
 
             /// <summary>
             ///     The module which source type is being injected to.
@@ -288,14 +281,14 @@ namespace Origami
             {
                 OriginModule = module;
                 TargetModule = target;
-                importer = new Importer(target, ImporterOptions.TryToUseTypeDefs, new GenericParamContext(), this);
+                Importer = new Importer(target, ImporterOptions.TryToUseTypeDefs, new GenericParamContext(), this);
             }
 
             /// <summary>
             ///     Gets the importer.
             /// </summary>
             /// <value>The importer.</value>
-            public Importer Importer => importer;
+            public Importer Importer { get; }
 
             /// <inheritdoc />
             public override ITypeDefOrRef Map(ITypeDefOrRef typeDefOrRef)

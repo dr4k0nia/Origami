@@ -14,7 +14,7 @@ namespace Origami
         
         private static void Main( string[] args )
         {
-            bool inject = false;
+            var inject = false;
             var file = "";
 
             Console.WriteLine( "Origami by drakonia - https://github.com/dr4k0nia/Origami \r\n" );
@@ -125,7 +125,7 @@ namespace Origami
 
         #region "Binary modifications"
 
-        public static ModuleDefUser CreateStub( ModuleDefMD originModule )
+        private static ModuleDefUser CreateStub( ModuleDef originModule )
         {
             var stubModule =
                 new ModuleDefUser( originModule.Name, originModule.Mvid, originModule.CorLibTypes.AssemblyRef );
