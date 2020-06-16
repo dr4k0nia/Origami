@@ -81,6 +81,10 @@ namespace Origami
 
                 targetModule = stubModule;
             }
+            
+            //Rename Global Constructor
+            var moduleGlobalType = targetModule.GlobalType;
+            moduleGlobalType.Name = "Origami";
 
             var writerOptions = new ModuleWriterOptions( targetModule );
 
