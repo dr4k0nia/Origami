@@ -167,9 +167,8 @@ namespace Origami
         private static void ImportAssemblyTypeReferences( ModuleDef originModule, ModuleDef stubModule )
         {
             var assembly = stubModule.Assembly;
-            foreach ( var ca in assembly.CustomAttributes )
-                if ( ca.AttributeType.Scope == originModule )
-                    ca.Constructor = (ICustomAttributeType) stubModule.Import( ca.Constructor );
+            foreach ( var ca in assembly.CustomAttributes.Where( ca => ca.AttributeType.Scope == originModule ) )
+                ca.Constructor = (ICustomAttributeType) stubModule.Import( ca.Constructor );
             foreach ( var ca in assembly.DeclSecurities.SelectMany( declSec => declSec.CustomAttributes ) )
                 if ( ca.AttributeType.Scope == originModule )
                     ca.Constructor = (ICustomAttributeType) stubModule.Import( ca.Constructor );
@@ -219,11 +218,9 @@ namespace Origami
             //lead to Global constructor error( e.g[MD]: Error: Global item( field, method ) must be Static. [token: 0x06000002] / [MD]: Error: Global constructor. [token: 0x06000002] )
             foreach ( var md in module.GlobalType.Methods )
             {
-                if ( md.Name == ".ctor" )
-                {
-                    module.GlobalType.Remove( md );
-                    break;
-                }
+                if ( md.Name != ".ctor" ) continue;
+                module.GlobalType.Remove( md );
+                break;
             }
         }
 

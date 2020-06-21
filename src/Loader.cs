@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using dnlib.DotNet;
+using dnlib.PE;
 
 namespace Origami
 {
@@ -23,29 +24,26 @@ namespace Origami
             var mod = ModuleDefMD.Load( assemblyData );
             var peImage = mod.Metadata.PEImage;
 
-            for ( var i = 0; i < peImage.ImageSectionHeaders.Count; i++ )
+            foreach ( var section in peImage.ImageSectionHeaders )
             {
-                var section = peImage.ImageSectionHeaders[i];
+                if ( section.DisplayName != ".origami" ) continue;
 
-                if ( section.DisplayName == ".origami" )
+                var reader = peImage.CreateReader( section.VirtualAddress, section.SizeOfRawData );
+
+                var data = Decompress( reader.ToArray() );
+
+                var asm = Assembly.Load( data );
+
+                if ( asm.EntryPoint != null )
                 {
-                    var reader = peImage.CreateReader( section.VirtualAddress, section.SizeOfRawData );
-
-                    var data = Decompress( reader.ToArray() );
-
-                    var asm = Assembly.Load( data );
-
-                    if ( asm.EntryPoint != null )
-                    {
-                        MethodBase entryPoint = asm.EntryPoint;
-                        var parameters = new object[entryPoint.GetParameters().Length];
-                        if ( parameters.Length != 0 )
-                            parameters[0] = args;
-                        entryPoint.Invoke( null, parameters );
-                    }
-                    else
-                        throw new EntryPointNotFoundException( "Origami could not find a valid EntryPoint to invoke" );
+                    MethodBase entryPoint = asm.EntryPoint;
+                    var parameters = new object[entryPoint.GetParameters().Length];
+                    if ( parameters.Length != 0 )
+                        parameters[0] = args;
+                    entryPoint.Invoke( null, parameters );
                 }
+                else
+                    throw new EntryPointNotFoundException( "Origami could not find a valid EntryPoint to invoke" );
             }
         }
 
@@ -66,10 +64,11 @@ namespace Origami
 
         private static byte[] Decompress( byte[] data )
         {
+            using ( var origin = new MemoryStream(data) )
             using ( var destination = new MemoryStream() )
+            using ( var deflateStream = new DeflateStream( origin, CompressionMode.Decompress ) )
             {
-                using ( var deflateStream = new DeflateStream( new MemoryStream( data ), CompressionMode.Decompress ) )
-                    deflateStream.CopyTo( destination );
+                deflateStream.CopyTo( destination );
                 return destination.ToArray();
             }
         }
@@ -95,29 +94,26 @@ namespace Origami
             var mod = ModuleDefMD.Load( assemblyData );
             var peImage = mod.Metadata.PEImage;
 
-            for ( var i = 0; i < peImage.ImageSectionHeaders.Count; i++ )
+            foreach ( var section in peImage.ImageSectionHeaders )
             {
-                var section = peImage.ImageSectionHeaders[i];
+                if ( section.DisplayName != ".origami" ) continue;
 
-                if ( section.DisplayName == ".origami" )
+                var reader = peImage.CreateReader( section.VirtualAddress, section.SizeOfRawData );
+
+                var data = Decompress( reader.ToArray() );
+
+                var asm = Assembly.Load( data );
+
+                if ( asm.EntryPoint != null )
                 {
-                    var reader = peImage.CreateReader( section.VirtualAddress, section.SizeOfRawData );
-
-                    var data = Decompress( reader.ToArray() );
-
-                    var asm = Assembly.Load( data );
-
-                    if ( asm.EntryPoint != null )
-                    {
-                        MethodBase entryPoint = asm.EntryPoint;
-                        var parameters = new object[entryPoint.GetParameters().Length];
-                        if ( parameters.Length != 0 )
-                            parameters[0] = new string[0];
-                        entryPoint.Invoke( null, parameters );
-                    }
-                    else
-                        throw new EntryPointNotFoundException( "Origami could not find a valid EntryPoint to invoke" );
+                    MethodBase entryPoint = asm.EntryPoint;
+                    var parameters = new object[entryPoint.GetParameters().Length];
+                    if ( parameters.Length != 0 )
+                        parameters[0] = new string[0];
+                    entryPoint.Invoke( null, parameters );
                 }
+                else
+                    throw new EntryPointNotFoundException( "Origami could not find a valid EntryPoint to invoke" );
             }
         }
 
@@ -138,10 +134,11 @@ namespace Origami
 
         private static byte[] Decompress( byte[] data )
         {
+            using ( var origin = new MemoryStream(data) )
             using ( var destination = new MemoryStream() )
+            using ( var deflateStream = new DeflateStream( origin, CompressionMode.Decompress ) )
             {
-                using ( var deflateStream = new DeflateStream( new MemoryStream( data ), CompressionMode.Decompress ) )
-                    deflateStream.CopyTo( destination );
+                deflateStream.CopyTo( destination );
                 return destination.ToArray();
             }
         }
