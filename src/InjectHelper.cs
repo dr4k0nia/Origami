@@ -47,7 +47,8 @@ namespace Origami
         /// <returns>The cloned FieldDef.</returns>
         private static FieldDefUser Clone( FieldDef origin )
         {
-            var ret = new FieldDefUser( origin.Name, null, origin.Attributes );
+            //This was modified to also clone FieldOffset and MarshalType which is required for the structs used to read the pe header
+            var ret = new FieldDefUser( origin.Name, null, origin.Attributes ) {FieldOffset = origin.FieldOffset, MarshalType = origin.MarshalType};
             return ret;
         }
 
