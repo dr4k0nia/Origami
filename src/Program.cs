@@ -11,10 +11,9 @@ namespace Origami
     internal static class Program
     {
         private static byte[] payload;
-        
+
         private static void Main( string[] args )
         {
-            var inject = false;
             var file = "";
 
             Console.WriteLine( "Origami by drakonia - https://github.com/dr4k0nia/Origami \r\n" );
@@ -25,21 +24,7 @@ namespace Origami
                 return;
             }
 
-            if ( args.Contains( "-inject" ) )
-            {
-                if ( args.Length == 3 )
-                {
-                    Console.WriteLine( "Using injection mode" );
-                    inject = true;
-                    file = args[1];
-                }
-                else
-                    throw new ArgumentException( "Invalid parameters" );
-            }
-            else
-            {
-                file = args[0];
-            }
+            file = args[0];
 
             if ( !File.Exists( file ) )
                 throw new FileNotFoundException( $"Could not find file: {file}" );
@@ -49,42 +34,25 @@ namespace Origami
             if ( !Utils.IsExe( originModule ) )
                 throw new Exception( "Invalid file format => supported are .net executables" );
 
-            ModuleDef targetModule;
-            if ( inject )
-            {
-                var payloadFile = args[2];
-                if ( !File.Exists( payloadFile ) )
-                    throw new FileNotFoundException( $"Could not find payload: {payloadFile}" );
-                //Use the specified payload file as payload
-                payload = File.ReadAllBytes( payloadFile );
-                
-                ModifyModule( originModule, true );
+            //input file as payload
+            payload = File.ReadAllBytes( file );
 
-                targetModule = originModule;
-            }
-            else
-            {
-                //input file as payload
-                payload = File.ReadAllBytes( file );
+            //Generate stub based on origin file
+            Console.WriteLine( "Generating new stub module" );
+            ModuleDefUser stubModule = CreateStub( originModule );
 
-                //Generate stub based on origin file
-                Console.WriteLine( "Generating new stub module" );
-                ModuleDefUser stubModule = CreateStub( originModule );
-                
-                ModifyModule( stubModule, false );
+            ModifyModule( stubModule, false );
 
-                targetModule = stubModule;
-            }
-            
+
             //Rename Global Constructor
-            var moduleGlobalType = targetModule.GlobalType;
+            var moduleGlobalType = stubModule.GlobalType;
             moduleGlobalType.Name = "Origami";
 
-            var writerOptions = new ModuleWriterOptions( targetModule );
+            var writerOptions = new ModuleWriterOptions( stubModule );
 
             writerOptions.WriterEvent += OnWriterEvent;
 
-            targetModule.Write( file.Replace( ".exe", "_origami.exe" ), writerOptions );
+            stubModule.Write( file.Replace( ".exe", "_origami.exe" ), writerOptions );
 
             Console.WriteLine( "Saving module..." );
             Console.ForegroundColor = ConsoleColor.Green;
@@ -174,28 +142,18 @@ namespace Origami
             //Use ConfuserEx InjectHelper class to inject Loader class into our target, under <Module>
             var members = InjectHelper.Inject( injectType, module.GlobalType, module );
 
-            if ( callOnly )
-            {
-                Console.WriteLine( "Injecting Origami loader into {0}", module.GlobalType.Name );
-                //Find the Initialize() Method in Loader
-                var init = (MethodDef) members.Single( method => method.Name == "Main" );
-                //Add Instruction to call the init method 
-                global.Body.Instructions.Insert( 0, Instruction.Create( OpCodes.Call, init ) );
-            }
-            else
-            {
-                Console.WriteLine( "Creating EntryPoint for stub {0}", module.GlobalType.Name );
-                //Resolve method for the EntryPoint
-                var entryPoint = members.OfType<MethodDef>().Single( method => method.Name == "Main" );
-                //Set EntryPoint to Main method defined in the Loader class
-                module.EntryPoint = entryPoint;
 
-                //Add STAThreadAttribute
-                var attrType = module.CorLibTypes.GetTypeRef( "System", "STAThreadAttribute" );
-                var ctorSig = MethodSig.CreateInstance( module.CorLibTypes.Void );
-                entryPoint.CustomAttributes.Add( new CustomAttribute(
-                    new MemberRefUser( module, ".ctor", ctorSig, attrType ) ) );
-            }
+            Console.WriteLine( "Creating EntryPoint for stub {0}", module.GlobalType.Name );
+            //Resolve method for the EntryPoint
+            var entryPoint = members.OfType<MethodDef>().Single( method => method.Name == "Main" );
+            //Set EntryPoint to Main method defined in the Loader class
+            module.EntryPoint = entryPoint;
+
+            //Add STAThreadAttribute
+            var attrType = module.CorLibTypes.GetTypeRef( "System", "STAThreadAttribute" );
+            var ctorSig = MethodSig.CreateInstance( module.CorLibTypes.Void );
+            entryPoint.CustomAttributes.Add( new CustomAttribute(
+                new MemberRefUser( module, ".ctor", ctorSig, attrType ) ) );
 
             //Remove.ctor method because otherwise it will
             //lead to Global constructor error( e.g[MD]: Error: Global item( field, method ) must be Static. [token: 0x06000002] / [MD]: Error: Global constructor. [token: 0x06000002] )
