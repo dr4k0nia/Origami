@@ -210,34 +210,6 @@ namespace Origami
         }
 
         /// <summary>
-        ///     Injects the specified TypeDef to another module.
-        /// </summary>
-        /// <param name="typeDef">The source TypeDef.</param>
-        /// <param name="target">The target module.</param>
-        /// <returns>The injected TypeDef.</returns>
-        public static TypeDef Inject( TypeDef typeDef, ModuleDef target )
-        {
-            var ctx = new InjectContext( typeDef.Module, target );
-            PopulateContext( typeDef, ctx );
-            Copy( typeDef, ctx, true );
-            return (TypeDef) ctx.ImportMap[typeDef];
-        }
-
-        /// <summary>
-        ///     Injects the specified MethodDef to another module.
-        /// </summary>
-        /// <param name="methodDef">The source MethodDef.</param>
-        /// <param name="target">The target module.</param>
-        /// <returns>The injected MethodDef.</returns>
-        public static MethodDef Inject( MethodDef methodDef, ModuleDef target )
-        {
-            var ctx = new InjectContext( methodDef.Module, target );
-            ctx.ImportMap[methodDef] = Clone( methodDef );
-            CopyMethodDef( methodDef, ctx );
-            return (MethodDef) ctx.ImportMap[methodDef];
-        }
-
-        /// <summary>
         ///     Injects the members of specified TypeDef to another module.
         /// </summary>
         /// <param name="typeDef">The source TypeDef.</param>
@@ -264,11 +236,6 @@ namespace Origami
             public readonly Dictionary<IDnlibDef, IDnlibDef> ImportMap = new Dictionary<IDnlibDef, IDnlibDef>();
 
             /// <summary>
-            ///     The module which source type originated from.
-            /// </summary>
-            private readonly ModuleDef OriginModule;
-
-            /// <summary>
             ///     The module which source type is being injected to.
             /// </summary>
             public readonly ModuleDef TargetModule;
@@ -280,7 +247,6 @@ namespace Origami
             /// <param name="target">The target module.</param>
             public InjectContext( ModuleDef module, ModuleDef target )
             {
-                OriginModule = module;
                 TargetModule = target;
                 Importer = new Importer(target, ImporterOptions.TryToUseTypeDefs, new GenericParamContext(), this);
             }

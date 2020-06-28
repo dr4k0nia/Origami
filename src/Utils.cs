@@ -12,10 +12,5 @@ namespace Origami
         {
             return module.Kind == ModuleKind.Windows || module.Kind == ModuleKind.Console;
         }
-
-        public static string GetDnlibPath()
-        {
-            return ( from asm in AppDomain.CurrentDomain.GetAssemblies() from m in asm.Modules where m.Name == "dnlib.dll" select m.Assembly.Location ).FirstOrDefault();
-        }
     }
 }
