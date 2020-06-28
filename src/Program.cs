@@ -44,10 +44,6 @@ namespace Origami
             if ( !File.Exists( file ) )
                 throw new FileNotFoundException( $"Could not find file: {file}" );
 
-            var dnlibPath = Utils.GetDnlibPath();
-            if ( !File.Exists( dnlibPath ) )
-                throw new FileNotFoundException( "Missing Dependency dnlib.dll" );
-
             var originModule = ModuleDefMD.Load( file );
 
             if ( !Utils.IsExe( originModule ) )
@@ -61,8 +57,7 @@ namespace Origami
                     throw new FileNotFoundException( $"Could not find payload: {payloadFile}" );
                 //Use the specified payload file as payload
                 payload = File.ReadAllBytes( payloadFile );
-
-                AddCompressedDependencies( originModule, dnlibPath );
+                
                 ModifyModule( originModule, true );
 
                 targetModule = originModule;
@@ -75,8 +70,7 @@ namespace Origami
                 //Generate stub based on origin file
                 Console.WriteLine( "Generating new stub module" );
                 ModuleDefUser stubModule = CreateStub( originModule );
-
-                AddCompressedDependencies( stubModule, dnlibPath );
+                
                 ModifyModule( stubModule, false );
 
                 targetModule = stubModule;
@@ -114,7 +108,7 @@ namespace Origami
             var writer = (ModuleWriterBase) sender;
             if ( e.Event == ModuleWriterEvent.PESectionsCreated )
             {
-                var section = new PESection( ".origami", 0x40000080 );
+                var section = new PESection( ".origami", 0xC0000080 /*0x40000080*/ );
 
                 writer.AddSection( section );
 
@@ -155,14 +149,6 @@ namespace Origami
             return stubModule;
         }
 
-        private static void AddCompressedDependencies( ModuleDef module, string fullName )
-        {
-            var dependencyData = File.ReadAllBytes( fullName );
-
-            var resourceData = Compress( dependencyData );
-            module.Resources.Add( new EmbeddedResource( "dnlib.dll.compressed", resourceData ) );
-        }
-
         //Taken from ConfuserEx (Compressor)
         private static void ImportAssemblyTypeReferences( ModuleDef originModule, ModuleDef stubModule )
         {
@@ -177,9 +163,10 @@ namespace Origami
         //Inspired by EOFAntiTamper
         private static void ModifyModule( ModuleDef module, bool callOnly )
         {
-            var loaderType = callOnly ? typeof(CallLoader) : typeof(Loader);
+            var loaderType = typeof(Loader);
             //Declare module to inject
             var injectModule = ModuleDefMD.Load( loaderType.Module );
+            //Get global constructor or create one if it does not already exist
             var global = module.GlobalType.FindOrCreateStaticConstructor();
             //Declare CallLoader as a TypeDef using it's Metadata token
             var injectType = injectModule.ResolveTypeDef( MDToken.ToRID( loaderType.MetadataToken ) );
@@ -191,18 +178,14 @@ namespace Origami
             {
                 Console.WriteLine( "Injecting Origami loader into {0}", module.GlobalType.Name );
                 //Find the Initialize() Method in Loader
-                var init = (MethodDef) members.Single( method => method.Name == "Initialize" );
+                var init = (MethodDef) members.Single( method => method.Name == "Main" );
                 //Add Instruction to call the init method 
                 global.Body.Instructions.Insert( 0, Instruction.Create( OpCodes.Call, init ) );
             }
             else
             {
-                Console.WriteLine( "Creating Origami entry point for stub {0}", module.GlobalType.Name );
-                //Find the Initialize() Method in Loader
-                var init = (MethodDef) members.Single( method => method.Name == "Initialize" );
-                //Add Instruction to call the init method 
-                global.Body.Instructions.Insert( 0, Instruction.Create( OpCodes.Call, init ) );
-
+                Console.WriteLine( "Creating EntryPoint for stub {0}", module.GlobalType.Name );
+                //Resolve method for the EntryPoint
                 var entryPoint = members.OfType<MethodDef>().Single( method => method.Name == "Main" );
                 //Set EntryPoint to Main method defined in the Loader class
                 module.EntryPoint = entryPoint;
