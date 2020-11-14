@@ -16,7 +16,7 @@ namespace Origami
             Console.WriteLine( "Origami by drakonia - https://github.com/dr4k0nia/Origami \r\n" );
             if ( args.Length == 0 )
             {
-                Console.WriteLine( "Usage: Origami.exe <file> or Origami.exe -inject <host> <payload>" );
+                Console.WriteLine( "Usage: Origami.exe <file>" );
                 Console.ReadKey();
                 return;
             }
