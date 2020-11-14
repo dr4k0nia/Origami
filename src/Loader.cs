@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
@@ -6,45 +7,15 @@ using System.Runtime.InteropServices;
 
 namespace Origami
 {
+    [SuppressMessage( "ReSharper", "InconsistentNaming" )]
     internal static class Loader
     {
         #region File Header Structures
 
-        [StructLayout( LayoutKind.Sequential )]
+        [StructLayout( LayoutKind.Explicit )]
         private readonly struct IMAGE_DOS_HEADER
         {
-            // DOS .EXE header
-            private readonly ushort e_magic; // Magic number
-            private readonly ushort e_cblp; // Bytes on last page of file
-            private readonly ushort e_cp; // Pages in file
-            private readonly ushort e_crlc; // Relocations
-            private readonly ushort e_cparhdr; // Size of header in paragraphs
-            private readonly ushort e_minalloc; // Minimum extra paragraphs needed
-            private readonly ushort e_maxalloc; // Maximum extra paragraphs needed
-            private readonly ushort e_ss; // Initial (relative) SS value
-            private readonly ushort e_sp; // Initial SP value
-            private readonly ushort e_csum; // Checksum
-            private readonly ushort e_ip; // Initial IP value
-            private readonly ushort e_cs; // Initial (relative) CS value
-            private readonly ushort e_lfarlc; // File address of relocation table
-            private readonly ushort e_ovno; // Overlay number
-            private readonly ushort e_res_0; // Reserved words
-            private readonly ushort e_res_1; // Reserved words
-            private readonly ushort e_res_2; // Reserved words
-            private readonly ushort e_res_3; // Reserved words
-            private readonly ushort e_oemid; // OEM identifier (for e_oeminfo)
-            private readonly ushort e_oeminfo; // OEM information; e_oemid specific
-            private readonly ushort e_res2_0; // Reserved words
-            private readonly ushort e_res2_1; // Reserved words
-            private readonly ushort e_res2_2; // Reserved words
-            private readonly ushort e_res2_3; // Reserved words
-            private readonly ushort e_res2_4; // Reserved words
-            private readonly ushort e_res2_5; // Reserved words
-            private readonly ushort e_res2_6; // Reserved words
-            private readonly ushort e_res2_7; // Reserved words
-            private readonly ushort e_res2_8; // Reserved words
-            private readonly ushort e_res2_9; // Reserved words
-            public readonly uint e_lfanew; // File address of new exe header
+            [FieldOffset( 60 )] public readonly uint e_lfanew;
         }
 
         [StructLayout( LayoutKind.Sequential )]
@@ -54,107 +25,18 @@ namespace Origami
             private readonly uint Size;
         }
 
-        [StructLayout( LayoutKind.Sequential, Pack = 1 )]
+        [StructLayout( LayoutKind.Explicit )]
         private readonly struct IMAGE_OPTIONAL_HEADER32
         {
-            private readonly ushort Magic;
-            private readonly byte MajorLinkerVersion;
-            private readonly byte MinorLinkerVersion;
-            private readonly uint SizeOfCode;
-            private readonly uint SizeOfInitializedData;
-            private readonly uint SizeOfUninitializedData;
-            private readonly uint AddressOfEntryPoint;
-            private readonly uint BaseOfCode;
-            private readonly uint BaseOfData;
-            private readonly uint ImageBase;
-            private readonly uint SectionAlignment;
-            private readonly uint FileAlignment;
-            private readonly ushort MajorOperatingSystemVersion;
-            private readonly ushort MinorOperatingSystemVersion;
-            private readonly ushort MajorImageVersion;
-            private readonly ushort MinorImageVersion;
-            private readonly ushort MajorSubsystemVersion;
-            private readonly ushort MinorSubsystemVersion;
-            private readonly uint Win32VersionValue;
-            private readonly uint SizeOfImage;
-            private readonly uint SizeOfHeaders;
-            private readonly uint CheckSum;
-            private readonly ushort Subsystem;
-            private readonly ushort DllCharacteristics;
-            private readonly uint SizeOfStackReserve;
-            private readonly uint SizeOfStackCommit;
-            private readonly uint SizeOfHeapReserve;
-            private readonly uint SizeOfHeapCommit;
-            private readonly uint LoaderFlags;
-            private readonly uint NumberOfRvaAndSizes;
-
-            private readonly IMAGE_DATA_DIRECTORY ExportTable;
-            private readonly IMAGE_DATA_DIRECTORY ImportTable;
-            private readonly IMAGE_DATA_DIRECTORY ResourceTable;
-            private readonly IMAGE_DATA_DIRECTORY ExceptionTable;
-            private readonly IMAGE_DATA_DIRECTORY CertificateTable;
-            private readonly IMAGE_DATA_DIRECTORY BaseRelocationTable;
-            private readonly IMAGE_DATA_DIRECTORY Debug;
-            private readonly IMAGE_DATA_DIRECTORY Architecture;
-            private readonly IMAGE_DATA_DIRECTORY GlobalPtr;
-            private readonly IMAGE_DATA_DIRECTORY TLSTable;
-            private readonly IMAGE_DATA_DIRECTORY LoadConfigTable;
-            private readonly IMAGE_DATA_DIRECTORY BoundImport;
-            private readonly IMAGE_DATA_DIRECTORY IAT;
-            private readonly IMAGE_DATA_DIRECTORY DelayImportDescriptor;
-            private readonly IMAGE_DATA_DIRECTORY CLRRuntimeHeader;
-            private readonly IMAGE_DATA_DIRECTORY Reserved;
+            [FieldOffset( 0 )] private readonly ushort Magic;
+            [FieldOffset( 216 )] private readonly IMAGE_DATA_DIRECTORY Reserved;
         }
 
-        [StructLayout( LayoutKind.Sequential, Pack = 1 )]
+        [StructLayout( LayoutKind.Explicit )]
         private readonly struct IMAGE_OPTIONAL_HEADER64
         {
-            private readonly ushort Magic;
-            private readonly byte MajorLinkerVersion;
-            private readonly byte MinorLinkerVersion;
-            private readonly uint SizeOfCode;
-            private readonly uint SizeOfInitializedData;
-            private readonly uint SizeOfUninitializedData;
-            private readonly uint AddressOfEntryPoint;
-            private readonly uint BaseOfCode;
-            private readonly ulong ImageBase;
-            private readonly uint SectionAlignment;
-            private readonly uint FileAlignment;
-            private readonly ushort MajorOperatingSystemVersion;
-            private readonly ushort MinorOperatingSystemVersion;
-            private readonly ushort MajorImageVersion;
-            private readonly ushort MinorImageVersion;
-            private readonly ushort MajorSubsystemVersion;
-            private readonly ushort MinorSubsystemVersion;
-            private readonly uint Win32VersionValue;
-            private readonly uint SizeOfImage;
-            private readonly uint SizeOfHeaders;
-            private readonly uint CheckSum;
-            private readonly ushort Subsystem;
-            private readonly ushort DllCharacteristics;
-            private readonly ulong SizeOfStackReserve;
-            private readonly ulong SizeOfStackCommit;
-            private readonly ulong SizeOfHeapReserve;
-            private readonly ulong SizeOfHeapCommit;
-            private readonly uint LoaderFlags;
-            private readonly uint NumberOfRvaAndSizes;
-
-            private readonly IMAGE_DATA_DIRECTORY ExportTable;
-            private readonly IMAGE_DATA_DIRECTORY ImportTable;
-            private readonly IMAGE_DATA_DIRECTORY ResourceTable;
-            private readonly IMAGE_DATA_DIRECTORY ExceptionTable;
-            private readonly IMAGE_DATA_DIRECTORY CertificateTable;
-            private readonly IMAGE_DATA_DIRECTORY BaseRelocationTable;
-            private readonly IMAGE_DATA_DIRECTORY Debug;
-            private readonly IMAGE_DATA_DIRECTORY Architecture;
-            private readonly IMAGE_DATA_DIRECTORY GlobalPtr;
-            private readonly IMAGE_DATA_DIRECTORY TLSTable;
-            private readonly IMAGE_DATA_DIRECTORY LoadConfigTable;
-            private readonly IMAGE_DATA_DIRECTORY BoundImport;
-            private readonly IMAGE_DATA_DIRECTORY IAT;
-            private readonly IMAGE_DATA_DIRECTORY DelayImportDescriptor;
-            private readonly IMAGE_DATA_DIRECTORY CLRRuntimeHeader;
-            private readonly IMAGE_DATA_DIRECTORY Reserved;
+            [FieldOffset( 0 )] private readonly ushort Magic;
+            [FieldOffset( 216 )] private readonly IMAGE_DATA_DIRECTORY Reserved;
         }
 
         [StructLayout( LayoutKind.Sequential, Pack = 1 )]
@@ -177,20 +59,14 @@ namespace Origami
             [FieldOffset( 0 )] [MarshalAs( UnmanagedType.ByValArray, SizeConst = 8 )]
             private readonly char[] Name;
 
-            [FieldOffset( 8 )] private readonly uint VirtualSize;
             [FieldOffset( 12 )] public readonly uint VirtualAddress;
             [FieldOffset( 16 )] public readonly uint SizeOfRawData;
             [FieldOffset( 20 )] private readonly uint PointerToRawData;
-            [FieldOffset( 24 )] private readonly uint PointerToRelocations;
-            [FieldOffset( 28 )] private readonly uint PointerToLinenumbers;
-            [FieldOffset( 32 )] private readonly ushort NumberOfRelocations;
-            [FieldOffset( 34 )] private readonly ushort NumberOfLinenumbers;
             [FieldOffset( 36 )] private readonly uint Characteristics;
 
             public string Section => new string( Name );
         }
 
-        private const ushort IMAGE_NT_OPTIONAL_HDR32_MAGIC = 0x10b;
         private const ushort IMAGE_NT_OPTIONAL_HDR64_MAGIC = 0x20b;
 
         #endregion File Header Structures
@@ -220,7 +96,7 @@ namespace Origami
         /// <param name="index"></param>
         private static void Load( IntPtr memPtr, long index )
         {
-            var startIndex = index;
+            long startIndex = index;
             // Reading the dos header
             dosHeader = FromMemoryPtr<IMAGE_DOS_HEADER>( memPtr, ref index );
             index = startIndex + dosHeader.e_lfanew + 4;
@@ -229,7 +105,7 @@ namespace Origami
             fileHeader = FromMemoryPtr<IMAGE_FILE_HEADER>( memPtr, ref index );
 
             // See the optional header magic to determine 32-bit vs 64-bit
-            var optMagic = Marshal.ReadInt16( new IntPtr( memPtr.ToInt64() + index ) );
+            short optMagic = Marshal.ReadInt16( new IntPtr( memPtr.ToInt64() + index ) );
             _is32bit = ( optMagic != IMAGE_NT_OPTIONAL_HDR64_MAGIC );
 
             if ( _is32bit )

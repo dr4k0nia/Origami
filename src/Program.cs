@@ -3,19 +3,16 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using dnlib.DotNet;
-using dnlib.DotNet.Emit;
 using dnlib.DotNet.Writer;
 
 namespace Origami
 {
     internal static class Program
     {
-        private static byte[] payload;
+        private static byte[] _payload;
 
         private static void Main( string[] args )
         {
-            var file = "";
-
             Console.WriteLine( "Origami by drakonia - https://github.com/dr4k0nia/Origami \r\n" );
             if ( args.Length == 0 )
             {
@@ -24,24 +21,24 @@ namespace Origami
                 return;
             }
 
-            file = args[0];
+            string file = args[0];
 
             if ( !File.Exists( file ) )
                 throw new FileNotFoundException( $"Could not find file: {file}" );
 
             var originModule = ModuleDefMD.Load( file );
 
-            if ( !Utils.IsExe( originModule ) )
+            if ( !originModule.IsExecutable() )
                 throw new Exception( "Invalid file format => supported are .net executables" );
 
             //input file as payload
-            payload = File.ReadAllBytes( file );
+            _payload = File.ReadAllBytes( file );
 
             //Generate stub based on origin file
             Console.WriteLine( "Generating new stub module" );
-            ModuleDefUser stubModule = CreateStub( originModule );
+            var stubModule = originModule.GetStub();
 
-            ModifyModule( stubModule, false );
+            ModifyModule( stubModule );
 
 
             //Rename Global Constructor
@@ -61,16 +58,6 @@ namespace Origami
             Console.ReadKey();
         }
 
-        private static byte[] Compress( byte[] data )
-        {
-            using ( var mStream = new MemoryStream() )
-            {
-                using ( var dStream = new DeflateStream( mStream, CompressionLevel.Optimal ) )
-                    dStream.Write( data, 0, data.Length );
-                return mStream.ToArray();
-            }
-        }
-
         private static void OnWriterEvent( object sender, ModuleWriterEventArgs e )
         {
             var writer = (ModuleWriterBase) sender;
@@ -80,56 +67,18 @@ namespace Origami
 
                 writer.AddSection( section );
 
-                Console.WriteLine( "Created new pe section {0} with characteristics {1}", section.Name,
-                    section.Characteristics.ToString( "x8" ) );
+                Console.WriteLine( $"Created new pe section {section.Name} with characteristics {section.Characteristics:X}" );
 
-                section.Add( new ByteArrayChunk( Compress( payload ) ), 4 );
+                section.Add( new ByteArrayChunk( _payload.Compress() ), 4 );
 
-                Console.WriteLine( "Wrote {0} bytes to section {1}", payload.Length.ToString(), section.Name );
+                Console.WriteLine( $"Wrote {_payload.Length.ToString()} bytes to section {section.Name}" );
             }
         }
 
         #region "Binary modifications"
 
-        private static ModuleDefUser CreateStub( ModuleDef originModule )
-        {
-            var stubModule =
-                new ModuleDefUser( originModule.Name, originModule.Mvid, originModule.CorLibTypes.AssemblyRef );
-
-            originModule.Assembly.Modules.Insert( 0, stubModule );
-            ImportAssemblyTypeReferences( originModule, stubModule );
-
-            stubModule.Characteristics = originModule.Characteristics;
-            stubModule.Cor20HeaderFlags = originModule.Cor20HeaderFlags;
-            stubModule.Cor20HeaderRuntimeVersion = originModule.Cor20HeaderRuntimeVersion;
-            stubModule.DllCharacteristics = originModule.DllCharacteristics;
-            stubModule.EncBaseId = originModule.EncBaseId;
-            stubModule.EncId = originModule.EncId;
-            stubModule.Generation = originModule.Generation;
-            stubModule.Kind = originModule.Kind;
-            stubModule.Machine = originModule.Machine;
-            stubModule.TablesHeaderVersion = originModule.TablesHeaderVersion;
-            stubModule.Win32Resources = originModule.Win32Resources;
-            stubModule.RuntimeVersion = originModule.RuntimeVersion;
-            stubModule.Is32BitRequired = originModule.Is32BitRequired;
-            stubModule.Is32BitPreferred = originModule.Is32BitPreferred;
-
-            return stubModule;
-        }
-
-        //Taken from ConfuserEx (Compressor)
-        private static void ImportAssemblyTypeReferences( ModuleDef originModule, ModuleDef stubModule )
-        {
-            var assembly = stubModule.Assembly;
-            foreach ( var ca in assembly.CustomAttributes.Where( ca => ca.AttributeType.Scope == originModule ) )
-                ca.Constructor = (ICustomAttributeType) stubModule.Import( ca.Constructor );
-            foreach ( var ca in assembly.DeclSecurities.SelectMany( declSec => declSec.CustomAttributes ) )
-                if ( ca.AttributeType.Scope == originModule )
-                    ca.Constructor = (ICustomAttributeType) stubModule.Import( ca.Constructor );
-        }
-
         //Inspired by EOFAntiTamper
-        private static void ModifyModule( ModuleDef module, bool callOnly )
+        private static void ModifyModule( ModuleDef module )
         {
             var loaderType = typeof(Loader);
             //Declare module to inject
@@ -143,7 +92,7 @@ namespace Origami
             var members = InjectHelper.Inject( injectType, module.GlobalType, module );
 
 
-            Console.WriteLine( "Creating EntryPoint for stub {0}", module.GlobalType.Name );
+            Console.WriteLine( $"Creating EntryPoint for stub {module.GlobalType.Name}" );
             //Resolve method for the EntryPoint
             var entryPoint = members.OfType<MethodDef>().Single( method => method.Name == "Main" );
             //Set EntryPoint to Main method defined in the Loader class
