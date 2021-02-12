@@ -41,7 +41,7 @@ namespace Origami
         {
             long index = 0;
             // Reading e_lfanew from the dos header
-            uint e_lfanew = (uint) Marshal.ReadIntPtr( new IntPtr( memPtr.ToInt64() + 0x3C ) );
+            uint e_lfanew = (uint) Marshal.ReadInt16( new IntPtr( memPtr.ToInt64() + 0x3C ) );
             index += e_lfanew + 4;
 
             // Reading NumberOfSections the file header
