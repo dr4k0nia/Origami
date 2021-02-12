@@ -29,7 +29,7 @@ namespace Origami
             var originModule = ModuleDefMD.Load( file );
 
             if ( !originModule.IsExecutable() )
-                throw new Exception( "Invalid file format => supported are .net executables" );
+                throw new InvalidDataException( "Invalid file format => supported are .net executables" );
 
             //input file as payload
             _payload = File.ReadAllBytes( file );
@@ -90,7 +90,6 @@ namespace Origami
 
             //Use ConfuserEx InjectHelper class to inject Loader class into our target, under <Module>
             var members = InjectHelper.Inject( injectType, module.GlobalType, module );
-
 
             Console.WriteLine( $"Creating EntryPoint for stub {module.GlobalType.Name}" );
             //Resolve method for the EntryPoint
