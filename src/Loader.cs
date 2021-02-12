@@ -12,46 +12,7 @@ namespace Origami
     {
         #region File Header Structures
 
-        [StructLayout( LayoutKind.Explicit )]
-        private readonly struct IMAGE_DOS_HEADER
-        {
-            [FieldOffset( 60 )] public readonly uint e_lfanew;
-        }
-
-        [StructLayout( LayoutKind.Sequential )]
-        private readonly struct IMAGE_DATA_DIRECTORY
-        {
-            private readonly uint VirtualAddress;
-            private readonly uint Size;
-        }
-
-        [StructLayout( LayoutKind.Explicit )]
-        private readonly struct IMAGE_OPTIONAL_HEADER32
-        {
-            [FieldOffset( 0 )] private readonly ushort Magic;
-            [FieldOffset( 216 )] private readonly IMAGE_DATA_DIRECTORY Reserved;
-        }
-
-        [StructLayout( LayoutKind.Explicit )]
-        private readonly struct IMAGE_OPTIONAL_HEADER64
-        {
-            [FieldOffset( 0 )] private readonly ushort Magic;
-            [FieldOffset( 216 )] private readonly IMAGE_DATA_DIRECTORY Reserved;
-        }
-
-        [StructLayout( LayoutKind.Sequential, Pack = 1 )]
-        private readonly struct IMAGE_FILE_HEADER
-        {
-            private readonly ushort Machine;
-            public readonly ushort NumberOfSections;
-            private readonly uint TimeDateStamp;
-            private readonly uint PointerToSymbolTable;
-            private readonly uint NumberOfSymbols;
-            private readonly ushort SizeOfOptionalHeader;
-            private readonly ushort Characteristics;
-        }
-
-        // Grabbed the following 2 definitions from http://www.pinvoke.net/default.aspx/Structures/IMAGE_SECTION_HEADER.html
+        // Grabbed the following definition from http://www.pinvoke.net/default.aspx/Structures/IMAGE_SECTION_HEADER.html
 
         [StructLayout( LayoutKind.Explicit )]
         private readonly struct IMAGE_SECTION_HEADER
@@ -67,25 +28,7 @@ namespace Origami
             public string Section => new string( Name );
         }
 
-        private const ushort IMAGE_NT_OPTIONAL_HDR64_MAGIC = 0x20b;
-
         #endregion File Header Structures
-
-        #region Private Fields
-
-        private static bool _is32bit;
-
-        /// <summary>
-        /// The DOS header
-        /// </summary>
-        private static IMAGE_DOS_HEADER dosHeader;
-
-        /// <summary>
-        /// The file header
-        /// </summary>
-        private static IMAGE_FILE_HEADER fileHeader;
-
-        #endregion Private Fields
 
         #region Parsing
 
@@ -94,58 +37,38 @@ namespace Origami
         /// </summary>
         /// <param name="memPtr"></param>
         /// <param name="index"></param>
-        private static void Load( IntPtr memPtr, long index )
+        private static void Load( IntPtr memPtr)
         {
-            long startIndex = index;
-            // Reading the dos header
-            dosHeader = FromMemoryPtr<IMAGE_DOS_HEADER>( memPtr, ref index );
-            index = startIndex + dosHeader.e_lfanew + 4;
+            long index = 0;
+            // Reading e_lfanew from the dos header
+            uint e_lfanew = (uint) Marshal.ReadIntPtr( new IntPtr( memPtr.ToInt64() + 0x3C ) );
+            index += e_lfanew + 4;
 
-            // Reading the file header
-            fileHeader = FromMemoryPtr<IMAGE_FILE_HEADER>( memPtr, ref index );
+            // Reading NumberOfSections the file header
+            ushort NumberOfSections = (ushort) Marshal.ReadInt16( new IntPtr( memPtr.ToInt64() + index + 2 ) );
+            index += NumberOfSections + 16;
 
             // See the optional header magic to determine 32-bit vs 64-bit
             short optMagic = Marshal.ReadInt16( new IntPtr( memPtr.ToInt64() + index ) );
-            _is32bit = ( optMagic != IMAGE_NT_OPTIONAL_HDR64_MAGIC );
-
-            if ( _is32bit )
-                OptionalHeader32 = FromMemoryPtr<IMAGE_OPTIONAL_HEADER32>( memPtr, ref index );
+            
+            if ( optMagic != 0x20b ) // IMAGE_NT_OPTIONAL_HDR64_MAGIC = 0x20b
+                index += 0xE0; // size of IMAGE_OPTIONAL_HEADER32
             else
-                OptionalHeader64 = FromMemoryPtr<IMAGE_OPTIONAL_HEADER64>( memPtr, ref index );
+                index += 0xF0; // size of IMAGE_OPTIONAL_HEADER64
 
             // Read section headers
-            ImageSectionHeaders = new IMAGE_SECTION_HEADER[fileHeader.NumberOfSections];
+            ImageSectionHeaders = new IMAGE_SECTION_HEADER[NumberOfSections];
             for ( int headerNo = 0; headerNo < ImageSectionHeaders.Length; headerNo++ )
             {
-                ImageSectionHeaders[headerNo] = FromMemoryPtr<IMAGE_SECTION_HEADER>( memPtr, ref index );
+                ImageSectionHeaders[headerNo] = (IMAGE_SECTION_HEADER) Marshal.PtrToStructure( new IntPtr( memPtr.ToInt64() + index ),
+                    typeof(IMAGE_SECTION_HEADER) );
+                index += Marshal.SizeOf( typeof(IMAGE_SECTION_HEADER) );
             }
-        }
-
-        /// <summary>
-        /// Reading T from unmanaged memory pointer address.
-        /// </summary>
-        /// <param name="memPtr"></param>
-        /// <param name="index"></param>
-        private static T FromMemoryPtr<T>( IntPtr memPtr, ref long index )
-        {
-            var obj = (T) Marshal.PtrToStructure( new IntPtr( memPtr.ToInt64() + index ), typeof(T) );
-            index += Marshal.SizeOf( typeof(T) );
-            return obj;
         }
 
         #endregion
 
         #region Properties
-
-        /// <summary>
-        /// Gets the optional header
-        /// </summary>
-        private static IMAGE_OPTIONAL_HEADER32 OptionalHeader32 { get; set; }
-
-        /// <summary>
-        /// Gets the optional header
-        /// </summary>
-        private static IMAGE_OPTIONAL_HEADER64 OptionalHeader64 { get; set; }
 
         /// <summary>
         /// Image Section headers. Number of sections is in the file header.
@@ -159,14 +82,14 @@ namespace Origami
         private static void Main( string[] args )
         {
             var ptr = Marshal.GetHINSTANCE( typeof(Loader).Assembly.ManifestModule );
-            Load( ptr, 0 );
+            Load( ptr);
 
             foreach ( var section in ImageSectionHeaders )
             {
                 if ( section.Section == ".origami" )
                 {
                     //Initialize destination array with size of raw data
-                    var destination = new byte[section.SizeOfRawData];
+                    byte[] destination = new byte[section.SizeOfRawData];
 
                     //Copy managed array from unmanaged heap
                     Marshal.Copy( ptr + (int) section.VirtualAddress, destination, 0, (int) section.SizeOfRawData );
