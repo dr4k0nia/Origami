@@ -46,7 +46,7 @@ namespace Origami
 
             // Reading NumberOfSections the file header
             ushort NumberOfSections = (ushort) Marshal.ReadInt16( new IntPtr( memPtr.ToInt64() + index + 2 ) );
-            index += NumberOfSections + 16;
+            index += 20;
 
             // See the optional header magic to determine 32-bit vs 64-bit
             short optMagic = Marshal.ReadInt16( new IntPtr( memPtr.ToInt64() + index ) );
