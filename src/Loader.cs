@@ -41,6 +41,7 @@ namespace Origami
             index += e_lfanew + 4;
 
             // Reading NumberOfSections the file header
+          
             ushort NumberOfSections = *(ushort*) (memPtr + (int) index + 2);
             index += 20; // index NumberOfSections + 3 x uint + 3x ushort + 2 from above
 
