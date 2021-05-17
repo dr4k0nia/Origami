@@ -31,35 +31,28 @@ namespace Origami
         /// <summary>
         /// Reading from unmanaged memory pointer address.
         /// </summary>
-        /// <param name="memPtr"></param>
-        /// <param name="index"></param>
-        private static void Initialize(IntPtr memPtr)
+        /// <param name="ptr"></param>
+        private static void Initialize(byte* ptr)
         {
             long index = 0;
             // Reading e_lfanew from the dos header
-            uint e_lfanew = *(ushort*) (memPtr + 0x3C);
-            index += e_lfanew + 4;
+            //uint e_lfanew = *(uint*) (ptr + 0x3C);
+            ptr += *(uint*) (ptr + 0x3C);
 
             // Reading NumberOfSections the file header
           
-            ushort NumberOfSections = *(ushort*) (memPtr + (int) index + 2);
-            index += 20; // index NumberOfSections + 3 x uint + 3x ushort + 2 from above
+            ushort NumberOfSections = *(ushort*) (ptr + 0x6);
 
-            // See the optional header magic to determine 32-bit vs 64-bit
-            short optMagic = *(short*) (memPtr + (int) index);
-
-
-            // 0x20b = IMAGE_NT_OPTIONAL_HDR64_MAGIC 
-            // 0xE0 = size of IMAGE_OPTIONAL_HEADER32
-            // 0xF0 size of IMAGE_OPTIONAL_HEADER64
-            // Add header size to index depending on bitness
-            index += optMagic != 0x20b ? 0xE0 : 0xF0;
+            // Check optional header size and add it to index
+            ushort optHeaderSize = *(ushort*)(ptr + 0x14);
+            
+            index += 0x18 + optHeaderSize;
 
             // Read section headers
             ImageSectionHeaders = new IMAGE_SECTION_HEADER[NumberOfSections];
             for (int headerNo = 0; headerNo < ImageSectionHeaders.Length; headerNo++)
             {
-                ImageSectionHeaders[headerNo] = *(IMAGE_SECTION_HEADER*) (memPtr + (int) index);
+                ImageSectionHeaders[headerNo] = *(IMAGE_SECTION_HEADER*) (ptr + index);
                 index += sizeof(IMAGE_SECTION_HEADER);
             }
         }
@@ -83,7 +76,7 @@ namespace Origami
         private static void Main(string[] args)
         {
             // Call GetHINSTANCE() to obtain a handle to our module
-            var ptr = GetHandle(GetCaller().ManifestModule);
+            var ptr = (byte*)GetHandle(GetCaller().ManifestModule);
             // Parse PE header using the before obtained module handle
             Initialize(ptr);
             // Get name of EntryPoint
@@ -108,7 +101,7 @@ namespace Origami
                     {
                         for (int i = 0; i < buffer.Length; i++)
                         {
-                            *(p + i) = (byte) (*((byte*) ptr + section.VirtualAddress + i) ^ name[i % name.Length]);
+                            *(p + i) = (byte) (*(ptr + section.VirtualAddress + i) ^ name[i % name.Length]);
                         }
                     }
                     
