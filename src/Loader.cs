@@ -7,25 +7,21 @@ using System.Runtime.InteropServices;
 
 namespace Origami
 {
-    [SuppressMessage( "ReSharper", "InconsistentNaming" )]
-    internal static class Loader
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    internal static unsafe class Loader
     {
         #region File Header Structures
 
         // Grabbed the following definition from http://www.pinvoke.net/default.aspx/Structures/IMAGE_SECTION_HEADER.html
 
-        [StructLayout( LayoutKind.Explicit )]
-        private readonly struct IMAGE_SECTION_HEADER
+        [StructLayout(LayoutKind.Explicit)]
+        [SuppressMessage("ReSharper", "FieldCanBeMadeReadOnly.Local")]
+        private struct IMAGE_SECTION_HEADER
         {
-            [FieldOffset( 0 )] [MarshalAs( UnmanagedType.ByValArray, SizeConst = 8 )]
-            private readonly char[] Name;
-
-            [FieldOffset( 12 )] public readonly uint VirtualAddress;
-            [FieldOffset( 16 )] public readonly uint SizeOfRawData;
-            [FieldOffset( 20 )] private readonly uint PointerToRawData;
-            [FieldOffset( 36 )] private readonly uint Characteristics;
-
-            public string Section => new string( Name );
+            [FieldOffset(0)] public fixed byte Name[8];
+            [FieldOffset(12)] public uint VirtualAddress;
+            [FieldOffset(16)] public uint SizeOfRawData;
+            [FieldOffset(36)] private uint Characteristics;
         }
 
         #endregion File Header Structures
@@ -37,32 +33,34 @@ namespace Origami
         /// </summary>
         /// <param name="memPtr"></param>
         /// <param name="index"></param>
-        private static void Load( IntPtr memPtr)
+        private static void Initialize(IntPtr memPtr)
         {
             long index = 0;
             // Reading e_lfanew from the dos header
-            uint e_lfanew = (uint) Marshal.ReadInt16( new IntPtr( memPtr.ToInt64() + 0x3C ) );
+            uint e_lfanew = *(ushort*) (memPtr + 0x3C);
             index += e_lfanew + 4;
 
             // Reading NumberOfSections the file header
-            ushort NumberOfSections = (ushort) Marshal.ReadInt16( new IntPtr( memPtr.ToInt64() + index + 2 ) );
-            index += 20;
+          
+            ushort NumberOfSections = *(ushort*) (memPtr + (int) index + 2);
+            index += 20; // index NumberOfSections + 3 x uint + 3x ushort + 2 from above
 
             // See the optional header magic to determine 32-bit vs 64-bit
-            short optMagic = Marshal.ReadInt16( new IntPtr( memPtr.ToInt64() + index ) );
-            
-            if ( optMagic != 0x20b ) // IMAGE_NT_OPTIONAL_HDR64_MAGIC = 0x20b
-                index += 0xE0; // size of IMAGE_OPTIONAL_HEADER32
-            else
-                index += 0xF0; // size of IMAGE_OPTIONAL_HEADER64
+            short optMagic = *(short*) (memPtr + (int) index);
+
+
+            // 0x20b = IMAGE_NT_OPTIONAL_HDR64_MAGIC 
+            // 0xE0 = size of IMAGE_OPTIONAL_HEADER32
+            // 0xF0 size of IMAGE_OPTIONAL_HEADER64
+            // Add header size to index depending on bitness
+            index += optMagic != 0x20b ? 0xE0 : 0xF0;
 
             // Read section headers
             ImageSectionHeaders = new IMAGE_SECTION_HEADER[NumberOfSections];
-            for ( int headerNo = 0; headerNo < ImageSectionHeaders.Length; headerNo++ )
+            for (int headerNo = 0; headerNo < ImageSectionHeaders.Length; headerNo++)
             {
-                ImageSectionHeaders[headerNo] = (IMAGE_SECTION_HEADER) Marshal.PtrToStructure( new IntPtr( memPtr.ToInt64() + index ),
-                    typeof(IMAGE_SECTION_HEADER) );
-                index += Marshal.SizeOf( typeof(IMAGE_SECTION_HEADER) );
+                ImageSectionHeaders[headerNo] = *(IMAGE_SECTION_HEADER*) (memPtr + (int) index);
+                index += sizeof(IMAGE_SECTION_HEADER);
             }
         }
 
@@ -74,50 +72,66 @@ namespace Origami
         /// Image Section headers. Number of sections is in the file header.
         /// </summary>
         private static IMAGE_SECTION_HEADER[] ImageSectionHeaders { get; set; }
+        
+        private static readonly delegate*<byte[], Assembly> LoadAssembly = &Assembly.Load;
+        private static readonly delegate*<Assembly> GetCaller = &Assembly.GetCallingAssembly;
+        private static readonly delegate*<Module, IntPtr> GetHandle = &Marshal.GetHINSTANCE;
 
         #endregion Properties
 
 
-        [STAThread]
-        private static void Main( string[] args )
+        private static void Main(string[] args)
         {
-            var ptr = Marshal.GetHINSTANCE( typeof(Loader).Assembly.ManifestModule );
-            Load( ptr);
-
-            foreach ( var section in ImageSectionHeaders )
+            // Call GetHINSTANCE() to obtain a handle to our module
+            var ptr = GetHandle(GetCaller().ManifestModule);
+            // Parse PE header using the before obtained module handle
+            Initialize(ptr);
+            // Get name of EntryPoint
+            string name = GetCaller().EntryPoint.Name;
+            
+            
+            // Iterate trough all PE sections
+            foreach (var section in ImageSectionHeaders)
             {
-                if ( section.Section == ".origami" )
+                // Check if pe section name matches first 8 bytes of stub EntryPoint
+                bool flag = true;
+                for (int h = 0; h < 8; h++)
+                    if (name[h] != *(section.Name + h))
+                        flag = false;
+
+                if (flag)
                 {
-                    //Initialize destination array with size of raw data
-                    byte[] destination = new byte[section.SizeOfRawData];
+                    // Initialize buffer using size of raw data
+                    // Copy data from pe section into buffer and simultaneously (un)xor it
+                    byte[] buffer = new byte[section.SizeOfRawData];
+                    fixed (byte* p = &buffer[0])
+                    {
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            *(p + i) = (byte) (*((byte*) ptr + section.VirtualAddress + i) ^ name[i % name.Length]);
+                        }
+                    }
+                    
+                    // Decompress data from the buffer
+                    using var origin = new MemoryStream(buffer);
+                    using var destination = new MemoryStream();
+                    using var deflateStream = new DeflateStream(origin, CompressionMode.Decompress);
+                    deflateStream.CopyTo(destination);
+                    
+                    // Load assembly using the previously decompressed data
+                    var asm = LoadAssembly(destination.GetBuffer());
 
-                    //Copy managed array from unmanaged heap
-                    Marshal.Copy( ptr + (int) section.VirtualAddress, destination, 0, (int) section.SizeOfRawData );
-
-                    var asm = Assembly.Load( Decompress( destination ) );
-
-                    if ( asm.EntryPoint != null )
+                    if (asm.EntryPoint != null)
                     {
                         MethodBase entryPoint = asm.EntryPoint;
-                        var parameters = new object[entryPoint.GetParameters().Length];
-                        if ( parameters.Length != 0 )
+                        object[] parameters = new object[entryPoint.GetParameters().Length];
+                        if (parameters.Length != 0)
                             parameters[0] = args;
-                        entryPoint.Invoke( null, parameters );
+                        entryPoint.Invoke(null, parameters);
                     }
                     else
-                        throw new EntryPointNotFoundException( "Origami could not find a valid EntryPoint to invoke" );
+                        throw new EntryPointNotFoundException("Origami could not find a valid EntryPoint to invoke");
                 }
-            }
-        }
-
-        private static byte[] Decompress( byte[] data )
-        {
-            using ( var origin = new MemoryStream( data ) )
-            using ( var destination = new MemoryStream() )
-            using ( var deflateStream = new DeflateStream( origin, CompressionMode.Decompress ) )
-            {
-                deflateStream.CopyTo( destination );
-                return destination.ToArray();
             }
         }
     }

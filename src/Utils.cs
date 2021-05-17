@@ -2,7 +2,6 @@
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Reflection;
 using dnlib.DotNet;
 
 namespace Origami
@@ -11,17 +10,55 @@ namespace Origami
     {
         public static bool IsExecutable( this ModuleDefMD module )
         {
-            return module.Kind == ModuleKind.Windows || module.Kind == ModuleKind.Console;
+            return module.Kind is ModuleKind.Windows or ModuleKind.Console;
         }
 
-        public static byte[] Compress( this byte[] data )
+        public static void ScrambleNames( this ModuleDefUser module )
         {
-            using ( var mStream = new MemoryStream() )
+            foreach ( var method in module.GlobalType.Methods )
             {
-                using ( var dStream = new DeflateStream( mStream, CompressionLevel.Optimal ) )
-                    dStream.Write( data, 0, data.Length );
-                return mStream.ToArray();
+                if ( method.IsConstructor )
+                    continue;
+
+                method.Name = GetUniqueName();
             }
+
+            foreach ( var field in module.GlobalType.Fields )
+            {
+                field.Name = GetUniqueName();
+            }
+
+            foreach ( var type in module.GlobalType.NestedTypes )
+            {
+                type.Name = GetUniqueName();
+                foreach ( var field in type.Fields )
+                {
+                    field.Name = GetUniqueName();
+                }
+            }
+        }
+
+        public static string GetUniqueName()
+        {
+            return Guid.NewGuid().ToString();
+        }
+
+        public static byte[] Compress( this byte[] data, string identifier )
+        {
+            using var mStream = new MemoryStream();
+            using ( var dStream = new DeflateStream( mStream, CompressionLevel.Optimal ) )
+                dStream.Write( data, 0, data.Length );
+            return mStream.ToArray().Xor(identifier);
+        }
+
+        private static byte[] Xor(this byte[] data, string name)
+        {
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] ^= (byte)name[i % name.Length];
+            }
+
+            return data;
         }
 
         public static ModuleDefUser GetStub( this ModuleDef originModule )

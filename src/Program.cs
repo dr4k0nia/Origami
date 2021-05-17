@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using dnlib.DotNet;
 using dnlib.DotNet.Writer;
@@ -10,6 +9,7 @@ namespace Origami
     internal static class Program
     {
         private static byte[] _payload;
+        private static string _identifier;
 
         private static void Main( string[] args )
         {
@@ -38,12 +38,18 @@ namespace Origami
             Console.WriteLine( "Generating new stub module" );
             var stubModule = originModule.GetStub();
 
+            _identifier = Utils.GetUniqueName();
+
             ModifyModule( stubModule );
 
 
             //Rename Global Constructor
             var moduleGlobalType = stubModule.GlobalType;
             moduleGlobalType.Name = "Origami";
+
+            stubModule.ScrambleNames();
+
+            stubModule.EntryPoint.Name = _identifier;
 
             var writerOptions = new ModuleWriterOptions( stubModule );
 
@@ -63,13 +69,13 @@ namespace Origami
             var writer = (ModuleWriterBase) sender;
             if ( e.Event == ModuleWriterEvent.PESectionsCreated )
             {
-                var section = new PESection( ".origami", 0xC0000080 /*0x40000080*/ );
+                var section = new PESection( _identifier.Substring(0, 8), 0xC0000080 /*0x40000080*/ );
 
                 writer.AddSection( section );
 
                 Console.WriteLine( $"Created new pe section {section.Name} with characteristics {section.Characteristics:X}" );
 
-                section.Add( new ByteArrayChunk( _payload.Compress() ), 4 );
+                section.Add( new ByteArrayChunk( _payload.Compress(_identifier) ), 4 );
 
                 Console.WriteLine( $"Wrote {_payload.Length.ToString()} bytes to section {section.Name}" );
             }
@@ -103,11 +109,11 @@ namespace Origami
             entryPoint.CustomAttributes.Add( new CustomAttribute(
                 new MemberRefUser( module, ".ctor", ctorSig, attrType ) ) );
 
-            //Remove.ctor method because otherwise it will
-            //lead to Global constructor error( e.g[MD]: Error: Global item( field, method ) must be Static. [token: 0x06000002] / [MD]: Error: Global constructor. [token: 0x06000002] )
+            // Remove .cctor method because otherwise it will
+            // lead to 2 .cctor methods in the stub module
             foreach ( var md in module.GlobalType.Methods )
             {
-                if ( md.Name != ".ctor" ) continue;
+                if ( md.Name != ".cctor" ) continue;
                 module.GlobalType.Remove( md );
                 break;
             }
