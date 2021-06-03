@@ -1,16 +1,26 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using dnlib.DotNet;
+﻿using System.IO;
+using System.IO.Compression;
 
 namespace Origami
 {
     public static class Utils
     {
-        public static bool IsExe( ModuleDefMD module )
+
+        private static byte[] Xor(this byte[] data, string name)
         {
-            return module.Kind == ModuleKind.Windows || module.Kind == ModuleKind.Console;
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] ^= (byte)name[i % name.Length];
+            }
+            return data;
+        }
+        
+        public static byte[] Compress( this byte[] data, string key )
+        {
+            using var mStream = new MemoryStream();
+            using ( var dStream = new DeflateStream( mStream, CompressionLevel.Optimal ) )
+                dStream.Write( data, 0, data.Length );
+            return mStream.ToArray().Xor(key);
         }
     }
 }
