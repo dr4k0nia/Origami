@@ -1,11 +1,6 @@
 ﻿using System;
 using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using AsmResolver.DotNet;
-using AsmResolver.PE.File;
 using Origami.Packers;
-using Origami.Runtime;
 
 namespace Origami
 {

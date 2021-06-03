@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Linq;
-using System.Runtime.InteropServices;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Cloning;
-using Origami.Runtime;
 
 namespace Origami.Packers
 {
