@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using AsmResolver;
 using AsmResolver.DotNet;
+using AsmResolver.PE.DotNet.Builder;
 using AsmResolver.PE.File;
 using AsmResolver.PE.File.Headers;
 using Origami.Runtime;
@@ -25,10 +26,10 @@ namespace Origami.Packers
         public void Execute()
         {
             InjectLoader(_stubModule, typeof(PeSectionLoader));
-            
-            var output = new MemoryStream();
-            _stubModule.Write(output);
-            var peFile = PEFile.FromBytes(output.ToArray());
+
+            var peImage = _stubModule.ToPEImage();
+            var fileBuilder = new ManagedPEFileBuilder();
+            var peFile = fileBuilder.CreateFile(peImage);
             var section = new PESection(".origami",
                 SectionFlags.MemoryRead | SectionFlags.MemoryWrite | SectionFlags.ContentUninitializedData, new DataSegment(_payload.Compress(".origami")));
             peFile.Sections.Add(section);
