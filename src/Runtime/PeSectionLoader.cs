@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 namespace Origami.Runtime
 {
     [SuppressMessage("ReSharper", "InconsistentNaming")]
-    internal static unsafe class PeSectionLoader
+    internal unsafe class PeSectionLoader
     {
         #region File Header Structures
 

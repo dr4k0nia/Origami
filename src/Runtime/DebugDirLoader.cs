@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace Origami.Runtime
 {
-    internal static unsafe class DebugDirLoader
+    internal unsafe class DebugDirLoader
     {
         #region Parsing
 

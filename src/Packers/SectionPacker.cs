@@ -1,5 +1,4 @@
-﻿using System.IO;
-using AsmResolver;
+﻿using AsmResolver;
 using AsmResolver.DotNet;
 using AsmResolver.PE.DotNet.Builder;
 using AsmResolver.PE.File;
@@ -8,32 +7,26 @@ using Origami.Runtime;
 
 namespace Origami.Packers
 {
-    public sealed class SectionPacker : Packer, IPacker
+    public sealed class SectionPacker : Packer
     {
         private readonly ModuleDefinition _stubModule;
 
-        private readonly byte[] _payload;
-
-        private readonly string _outputPath;
-
-        public SectionPacker(byte[] originBinary, string outputPath)
+        public SectionPacker(byte[] payload, string outputPath) : base(payload, outputPath)
         {
-            _payload = originBinary;
-            _outputPath = outputPath;
-            _stubModule = CreateStub(ModuleDefinition.FromBytes(originBinary));
+            _stubModule = CreateStub(ModuleDefinition.FromBytes(payload));
         }
 
-        public void Execute()
+        public override void Execute()
         {
             InjectLoader(_stubModule, typeof(PeSectionLoader));
 
             var peImage = _stubModule.ToPEImage();
             var fileBuilder = new ManagedPEFileBuilder();
             var peFile = fileBuilder.CreateFile(peImage);
-            var section = new PESection(".origami",
-                SectionFlags.MemoryRead | SectionFlags.MemoryWrite | SectionFlags.ContentUninitializedData, new DataSegment(_payload.Compress(".origami")));
+            var section = new PESection(Name,
+                SectionFlags.MemoryRead | SectionFlags.MemoryWrite | SectionFlags.ContentUninitializedData, new DataSegment(Payload.Compress(Name)));
             peFile.Sections.Add(section);
-            peFile.Write(_outputPath);
+            peFile.Write(OutputPath);
         }
     }
 }

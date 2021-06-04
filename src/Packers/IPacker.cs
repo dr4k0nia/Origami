@@ -10,8 +10,26 @@ namespace Origami.Packers
         void Execute();
     }
 
-    public class Packer
+    public abstract class Packer : IPacker
     {
+        protected Packer(byte[] payload, string outputPath)
+        {
+            Payload = payload;
+            OutputPath = outputPath;
+        }
+
+        protected const string Name = ".origami";
+
+        protected byte[] Payload
+        {
+            get;
+        }
+
+        protected string OutputPath
+        {
+            get;
+        }
+        
         protected static ModuleDefinition CreateStub(ModuleDefinition originModule)
         {
             var stubModule =
@@ -30,17 +48,9 @@ namespace Origami.Packers
             stubModule.IsBit32Required = originModule.IsBit32Required;
             stubModule.IsBit32Preferred = originModule.IsBit32Preferred;
             
-            ImportAssemblyTypeReferences(originModule, stubModule);
+            stubModule.ImportAssemblyTypeReferences(originModule);
             
             return stubModule;
-        }
-
-        private static void ImportAssemblyTypeReferences(ModuleDefinition origin, ModuleDefinition target)
-        {
-            var assembly = origin.Assembly;
-            var importer = new ReferenceImporter(target);
-            foreach (var ca in assembly.CustomAttributes.Where(ca => ca.Constructor.Module == origin))
-                ca.Constructor = (ICustomAttributeType) importer.ImportMethod(ca.Constructor);
         }
 
         protected static void InjectLoader(ModuleDefinition targetModule, Type loaderClass)
@@ -58,8 +68,11 @@ namespace Origami.Packers
 
             var entryPoint = (MethodDefinition) result.ClonedMembers.First(m => m.Name == "Main");
             entryPoint.Name = ".origami";
+            entryPoint.DeclaringType.Name = "<Origami>";
 
             targetModule.ManagedEntrypoint = entryPoint;
         }
+
+        public abstract void Execute();
     }
 }

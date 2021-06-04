@@ -7,34 +7,28 @@ using Origami.Runtime;
 
 namespace Origami.Packers
 {
-    public class DebugDirPacker : Packer, IPacker
+    public class DebugDirPacker : Packer
     {
 
         private readonly ModuleDefinition _stubModule;
 
-        private readonly byte[] _payload;
-        
-        private readonly string _outputPath;
-
-        public DebugDirPacker(byte[] originBinary, string outputPath)
+        public DebugDirPacker(byte[] payload, string outputPath) : base(payload, outputPath)
         {
-            _payload = originBinary;
-            _outputPath = outputPath;
-            _stubModule = CreateStub(ModuleDefinition.FromBytes(originBinary));
+            _stubModule = CreateStub(ModuleDefinition.FromBytes(payload));
         }
 
-        public void Execute()
+        public override void Execute()
         {
             InjectLoader(_stubModule, typeof(DebugDirLoader));
             var peImage = _stubModule.ToPEImage();
             peImage.DebugData.Clear();
             var segment = new DebugDataEntry(new CustomDebugDataSegment(DebugDataType.Unknown,
-                new DataSegment(_payload.Compress(".origami"))));
+                new DataSegment(Payload.Compress(Name))));
             peImage.DebugData.Add(segment);
 
             var fileBuilder = new ManagedPEFileBuilder();
             var file = fileBuilder.CreateFile(peImage);
-            file.Write(_outputPath);
+            file.Write(OutputPath);
         }
         
     }

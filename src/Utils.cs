@@ -1,5 +1,7 @@
 ﻿using System.IO;
 using System.IO.Compression;
+using System.Linq;
+using AsmResolver.DotNet;
 
 namespace Origami
 {
@@ -21,6 +23,14 @@ namespace Origami
             using (var dStream = new DeflateStream(mStream, CompressionLevel.Optimal))
                 dStream.Write(data, 0, data.Length);
             return mStream.ToArray().Xor(key);
+        }
+        
+        public static void ImportAssemblyTypeReferences(this ModuleDefinition target, ModuleDefinition origin)
+        {
+            var assembly = origin.Assembly;
+            var importer = new ReferenceImporter(target);
+            foreach (var ca in assembly.CustomAttributes.Where(ca => ca.Constructor.Module == origin))
+                ca.Constructor = (ICustomAttributeType) importer.ImportMethod(ca.Constructor);
         }
     }
 }
