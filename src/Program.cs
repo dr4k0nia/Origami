@@ -24,35 +24,34 @@ namespace Origami
             if (!File.Exists(file))
                 throw new FileNotFoundException($"Could not find file: {file}");
 
-            if (!file.Contains(".exe"))
+            if (Path.GetExtension(file) != ".exe")
                 throw new InvalidDataException("Origami only supports .net executable files");
 
+            // Prepare initialization parameters payloadData that will get packed, and output path of packed file.
+            byte[] payloadData = File.ReadAllBytes(file);
+            string outputPath = file.Insert(file.Length - 4, "_origami");
+            
+            IPacker packer;
             if (args.Length > 1)
             {
-                IPacker packer;
-                switch (args[1])
+                packer = args[1] switch
                 {
-                    case "-dbg":
-                        packer = new DebugDirPacker(File.ReadAllBytes(file), file.Insert(file.Length - 4, "_origami"));
-                        packer.Execute();
-                        break;
-                    case "-pes":
-                        packer = new SectionPacker(File.ReadAllBytes(file), file.Insert(file.Length - 4, "_origami"));
-                        packer.Execute();
-                        break;
-                    default:
-                        throw new InvalidDataException(
-                            "Invalid mode argument: Available modes:\n-pes: Uses additional PE section for the payload data\n-dbg: Uses PE Debug Directory for the payload data");
-                }
+                    "-dbg" => new DebugDirPacker(payloadData, outputPath),
+                    "-pes" => new SectionPacker(payloadData, outputPath),
+                    _ => throw new InvalidDataException(
+                        "Invalid mode argument: Available modes:\n-pes: Uses additional PE section for the payload data\n-dbg: Uses PE Debug Directory for the payload data")
+                };
             }
             else
             {
-                var packer = new DebugDirPacker(File.ReadAllBytes(file), file.Insert(file.Length - 4, "_origami"));
-                packer.Execute();
+                packer = new DebugDirPacker(payloadData, outputPath);
             }
 
+            // Run packer
+            packer.Execute();
 
-            Console.WriteLine("Saving module...");
+
+            Console.WriteLine("Saving packed module: {0}", outputPath);
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("Finished");
 
