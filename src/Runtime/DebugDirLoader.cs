@@ -9,15 +9,12 @@ namespace Origami.Runtime
 {
     internal unsafe class DebugDirLoader
     {
-        #region Parsing
-
-        /// <summary>
-        /// Reading from unmanaged memory pointer address.
-        /// </summary>
-        /// <param name="ptr"></param>
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private static void Initialize(byte* ptr)
+        private static void Main(string[] args)
         {
+            // Call GetHINSTANCE() to obtain a handle to our module
+            byte* ptr = (byte*) Marshal.GetHINSTANCE(Assembly.GetCallingAssembly().ManifestModule);
+
+            // Parse PE header using the before obtained module handle
             // Reading e_lfanew from the dos header
             byte* p = ptr + *(uint*) (ptr + 0x3C);
 
@@ -32,31 +29,8 @@ namespace Origami.Runtime
                 : *(uint*) (p + 0xB8);
 
             ptr += DebugVirtualAddress;
-            SizeOfData = *(uint*) (ptr + 0x10);
-            AddressOfRawData = *(uint*) (ptr + 0x14);
-        }
-
-        #endregion
-
-        #region Properties
-
-        /// <summary>
-        /// Image Section headers. Number of sections is in the file header.
-        /// </summary>
-        private static uint AddressOfRawData;
-
-        private static uint SizeOfData;
-
-        #endregion Properties
-
-
-        private static void Main(string[] args)
-        {
-            // Call GetHINSTANCE() to obtain a handle to our module
-            byte* ptr = (byte*) Marshal.GetHINSTANCE(Assembly.GetCallingAssembly().ManifestModule);
-
-            // Parse PE header using the before obtained module handle
-            Initialize(ptr);
+            uint SizeOfData = *(uint*) (ptr + 0x10);
+            uint AddressOfRawData = *(uint*) (ptr + 0x14);
 
             // Get name of EntryPoint
             string name = Assembly.GetCallingAssembly().EntryPoint.Name;
@@ -65,11 +39,11 @@ namespace Origami.Runtime
             // Copy data from debug directory into buffer and simultaneously (un)xor it
             byte[] buffer = new byte[SizeOfData];
             ptr += AddressOfRawData;
-            fixed (byte* p = &buffer[0])
+            fixed (byte* rawData = &buffer[0])
             {
                 for (int i = 0; i < buffer.Length; i++)
                 {
-                    *(p + i) = (byte) (*(ptr + i) ^ name[i % name.Length]);
+                    *(rawData + i) = (byte) (*(ptr + i) ^ name[i % name.Length]);
                 }
             }
 
