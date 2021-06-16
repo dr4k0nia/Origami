@@ -1,23 +1,25 @@
-# Origami
-**Packer compressing .net assemblies, storing their contents inside of PE sections and invoking them on runtime**
+# <img width="64" height="64" valign="bottom" src="https://maxcdn.icons8.com/Color/PNG/512/Cultures/origami-512.png">Origami 
+**Packer compressing .net assemblies, (ab)using the PE format for data storage**
 
 ## Usage
 
        Origami.exe <file>
+       Origami.exe <file> <mode>
+#### Available modes:
+> **-dbg**
+Use PE headers debug directory for data storage
 
- The input file will be "cloned", the cloned stub contains the Origami Loader and an additional PE section called ".origami". The Origami Loader will extract, decompress and invoke the original assembly on runtime.
+> **-pes** Use additional PE Section (.origami) for data storage
 
- ### Compatibility
-- Origami supports .net framework executables
+## How it works
 
-### Example
+The assembly supplied to origami will be compressed and encrypted with a simple xor operation, the encrypted and compressed data (payload) will be inserted into a stub executable which will invoke its payload on runtime. Depending on the mode chosen the payload will either be stored in an additional pe section called .origami or in the debug directory of the stub.
 
-
-Structure of the Origami stub in dnSpy
-![Example](https://i.imgur.com/t8McDSg.png)
-
-#### Known issues:
+## Known issues
 - **Incompatible with Fody.Costura** and everything else that relies on methods called in the global constructor
+- No .NET Core support *(working on the issue)*
 
 ## Dependencies
-- [dnlib](https://github.com/0xd4d/dnlib) by 0xd4d (nuget package)
+- [AsmResolver](https://github.com/Washi1337/AsmResolver) by Washi
+
+*Logo by [icons8](https://icons8.com)*

@@ -44,7 +44,7 @@ namespace Origami
             }
             else
             {
-                packer = new DebugDirPacker(payloadData, outputPath);
+                packer = new SectionPacker(payloadData, outputPath);
             }
 
             // Run packer
