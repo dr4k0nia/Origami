@@ -9,28 +9,30 @@ namespace Origami.Runtime
 {
     internal unsafe class DebugDirLoader
     {
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
         private static void Main(string[] args)
         {
             // Call GetHINSTANCE() to obtain a handle to our module
-            byte* ptr = (byte*) Marshal.GetHINSTANCE(Assembly.GetCallingAssembly().ManifestModule);
+            byte* basePtr = (byte*) Marshal.GetHINSTANCE(Assembly.GetCallingAssembly().ManifestModule);
 
             // Parse PE header using the before obtained module handle
             // Reading e_lfanew from the dos header
-            byte* p = ptr + *(uint*) (ptr + 0x3C);
+            byte* ptr = basePtr + *(uint*) (basePtr + 0x3C);
 
             //index += 20; // index NumberOfSections + 3 x uint + 3x ushort + 2 from above
 
             // Check the optional header magic to determine 32-bit vs 64-bit
-            short optMagic = *(short*) (p + 0x18);
+            short optMagic = *(short*) (ptr + 0x18);
 
             // 0x20b = IMAGE_NT_OPTIONAL_HDR64_MAGIC 
             uint DebugVirtualAddress = optMagic != 0x20b
-                ? *(uint*) (p + 0xA8)
-                : *(uint*) (p + 0xB8);
+                ? *(uint*) (ptr + 0xA8)
+                : *(uint*) (ptr + 0xB8);
 
-            ptr += DebugVirtualAddress;
-            uint SizeOfData = *(uint*) (ptr + 0x10);
-            uint AddressOfRawData = *(uint*) (ptr + 0x14);
+            basePtr += DebugVirtualAddress;
+            uint SizeOfData = *(uint*) (basePtr + 0x10);
+            uint AddressOfRawData = *(uint*) (basePtr + 0x14);
+            basePtr -= DebugVirtualAddress;
 
             // Get name of EntryPoint
             string name = Assembly.GetCallingAssembly().EntryPoint.Name;
@@ -38,12 +40,12 @@ namespace Origami.Runtime
             // Initialize buffer using SizeOfData
             // Copy data from debug directory into buffer and simultaneously (un)xor it
             byte[] buffer = new byte[SizeOfData];
-            ptr += AddressOfRawData;
+            basePtr += AddressOfRawData;
             fixed (byte* rawData = &buffer[0])
             {
                 for (int i = 0; i < buffer.Length; i++)
                 {
-                    *(rawData + i) = (byte) (*(ptr + i) ^ name[i % name.Length]);
+                    *(rawData + i) = (byte) (*(basePtr + i) ^ name[i % name.Length]);
                 }
             }
 
