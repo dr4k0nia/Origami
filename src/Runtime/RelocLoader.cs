@@ -3,7 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Origami.Runtime
@@ -13,9 +12,10 @@ namespace Origami.Runtime
     {
         private static void Main(string[] args)
         {
-            // Call GetHINSTANCE() to obtain a handle to our module
+            // Placeholder VirtualAddress to the payload
             byte* basePtr = (byte*) 6969696969L;
 
+            // Placeholder size of the payload
             byte[] buffer = new byte[0x1337c0de];
 
             byte[] key = Encoding.UTF8.GetBytes(Assembly.GetCallingAssembly().EntryPoint.Name);
