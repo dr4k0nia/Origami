@@ -358,10 +358,4 @@ public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
             table.Add(data);
         }
     }
-
-    public enum Mode
-    {
-        PESection = 0x0,
-        DebugDataEntry = 0x1
-    }
 }

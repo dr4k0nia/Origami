@@ -76,4 +76,10 @@ namespace Origami.Packers
 
         public abstract void Execute();
     }
+
+    public enum Mode
+    {
+        PESection = 0x0,
+        DebugDataEntry = 0x1
+    }
 }
