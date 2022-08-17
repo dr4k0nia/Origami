@@ -30,21 +30,21 @@ namespace Origami
             // Prepare initialization parameters payloadData that will get packed, and output path of packed file.
             byte[] payloadData = File.ReadAllBytes(file);
             string outputPath = file.Insert(file.Length - 4, "_origami");
-            
+
             IPacker packer;
             if (args.Length > 1)
             {
                 packer = args[1] switch
                 {
-                    "-dbg" => new DebugDirPacker(payloadData, outputPath),
-                    "-pes" => new SectionPacker(payloadData, outputPath),
+                    "-dbg" => new RelocPacker(Mode.DebugDataEntry, payloadData, outputPath),
+                    "-pes" => new RelocPacker(Mode.PESection, payloadData, outputPath),
                     _ => throw new InvalidDataException(
                         "Invalid mode argument: Available modes:\n-pes: Uses additional PE section for the payload data\n-dbg: Uses PE Debug Directory for the payload data")
                 };
             }
             else
             {
-                packer = new SectionPacker(payloadData, outputPath);
+                packer = new RelocPacker(Mode.PESection, payloadData, outputPath);
             }
 
             // Run packer
