@@ -29,14 +29,14 @@ namespace Origami.Packers
         {
             get;
         }
-        
+
         protected static ModuleDefinition CreateStub(ModuleDefinition originModule)
         {
             var stubModule =
                 new ModuleDefinition( originModule.Name, originModule.CorLibTypeFactory.CorLibScope.GetAssembly() as AssemblyReference);
-            
+
             originModule.Assembly.Modules.Insert( 0, stubModule );
-            
+
             stubModule.FileCharacteristics = originModule.FileCharacteristics;
             stubModule.DllCharacteristics = originModule.DllCharacteristics;
             stubModule.EncBaseId = originModule.EncBaseId;
@@ -47,9 +47,10 @@ namespace Origami.Packers
             stubModule.RuntimeVersion = originModule.RuntimeVersion;
             stubModule.IsBit32Required = originModule.IsBit32Required;
             stubModule.IsBit32Preferred = originModule.IsBit32Preferred;
-            
+            stubModule.SubSystem = originModule.SubSystem;
+
             stubModule.ImportAssemblyTypeReferences(originModule);
-            
+
             return stubModule;
         }
 
@@ -60,7 +61,7 @@ namespace Origami.Packers
             var loader = (TypeDefinition) sourceModule.LookupMember(loaderClass.MetadataToken);
             cloner.Include(loader, true);
             var result = cloner.Clone();
-            
+
             foreach (var clonedType in result.ClonedTopLevelTypes)
                 targetModule.TopLevelTypes.Add(clonedType);
 
