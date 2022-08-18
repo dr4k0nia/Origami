@@ -18,12 +18,13 @@ namespace Origami.Runtime
             // Placeholder size of the payload
             byte[] buffer = new byte[0x1337c0de];
 
-            byte[] key = Encoding.UTF8.GetBytes(Assembly.GetCallingAssembly().EntryPoint.Name);
+            byte* key = (basePtr + buffer.Length - 64);
+
             fixed (byte* rawData = &buffer[0])
             {
                 for (int i = 0; i < buffer.Length; i++)
                 {
-                    *(long*) (rawData + i) = *(long*) (basePtr + i) ^ (key[i % key.Length] * 0x0101010101010101);
+                    *(long*) (rawData + i) = *(long*) (basePtr + i) ^ (key[i % 64] * 0x0101010101010101);
                 }
             }
 
