@@ -8,23 +8,23 @@ using System.Text;
 namespace Origami.Runtime
 {
     [SuppressMessage("ReSharper", "InconsistentNaming")]
-    internal unsafe class RelocLoader
+    internal static unsafe class RelocLoader
     {
+        [STAThread]
         private static void Main(string[] args)
         {
-            // Placeholder VirtualAddress to the payload
+            // Placeholder for relocated VirtualAddress
             byte* basePtr = (byte*) 6969696969L;
 
-            // Placeholder size of the payload
+            // Placeholder for payload size
             byte[] buffer = new byte[0x1337c0de];
 
-            byte* key = (basePtr + buffer.Length - 64);
-
+            byte[] key = Encoding.UTF8.GetBytes(Assembly.GetCallingAssembly().EntryPoint.Name);
             fixed (byte* rawData = &buffer[0])
             {
                 for (int i = 0; i < buffer.Length; i++)
                 {
-                    *(long*) (rawData + i) = *(long*) (basePtr + i) ^ (key[i % 64] * 0x0101010101010101);
+                    *(rawData + i) = (byte) (*(basePtr + i) ^ key[i % key.Length]);
                 }
             }
 

@@ -1,16 +1,12 @@
 ﻿using System;
-using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Security.Policy;
-using System.Text;
 using AsmResolver;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Builder;
 using AsmResolver.DotNet.Cloning;
 using AsmResolver.PE.DotNet.Cil;
 using Origami.Runtime;
-using static Origami.Packers.CustomManagedPEFileBuilder;
 
 namespace Origami.Packers
 {
@@ -18,6 +14,8 @@ namespace Origami.Packers
     {
         private readonly Mode _mode;
         private readonly ModuleDefinition _stubModule;
+
+        private string _key;
 
         public RelocPacker(Mode mode, byte[] payload, string outputPath)
             : base(payload, outputPath)
@@ -28,10 +26,11 @@ namespace Origami.Packers
 
         public override void Execute()
         {
+            _key = RandomString();
             InjectLoader(_stubModule, typeof(RelocLoader), out var oldToken);
             _stubModule.IsILOnly = false;
 
-            Patches patches = GetOffsets();
+            var patches = GetOffsets();
 
             var imageBuilder = new ManagedPEImageBuilder();
 
@@ -39,8 +38,7 @@ namespace Origami.Packers
 
             imageResult.TokenMapping.TryGetNewToken(oldToken, out var newToken);
 
-            byte[] key = GetKey();
-            var payload = new DataSegment(Payload.PreparePayload(key));
+            var payload = new DataSegment(Payload.Compress(_key));
 
             var fileBuilder = new CustomManagedPEFileBuilder(_mode, payload, newToken, patches);
             var peImage = imageResult.ConstructedImage;
@@ -67,18 +65,10 @@ namespace Origami.Packers
             offset = member.Methods.First(m => m.Name == "Main");
 
             var entryPoint = (MethodDefinition) result.ClonedMembers.First(m => m.Name == "Main");
-            entryPoint.Name = "<Origami>";
+            entryPoint.Name = _key;
             entryPoint.DeclaringType!.Name = "<Origami>";
 
             targetModule.ManagedEntrypoint = entryPoint;
-        }
-
-        private static byte[] GetKey()
-        {
-            using var provider = new RNGCryptoServiceProvider();
-            byte[] key = new byte[64];
-            provider.GetNonZeroBytes(key);
-            return key;
         }
 
         private Patches GetOffsets()
@@ -89,13 +79,23 @@ namespace Origami.Packers
 
             var instructions = entryPoint!.CilMethodBody?.Instructions;
 
-            var target = instructions!.First(i => i.OpCode == CilOpCodes.Ldc_I8);
+
+            var target = instructions.First(i => i.OpCode == CilOpCodes.Ldc_I8);
             patches.OffsetVA = target.Offset + target.OpCode.Size;
 
             target = instructions.First(i => i.IsLdcI4() && i.GetLdcI4Constant() == 0x1337c0de);
             patches.OffsetSize = target.Offset + target.OpCode.Size;
 
             return patches;
+        }
+
+        private string RandomString()
+        {
+            using var cryptoProvider = new RNGCryptoServiceProvider();
+            byte[] bytes = new byte[64];
+            cryptoProvider.GetBytes(bytes);
+
+            return BitConverter.ToString(bytes).Replace("-", string.Empty);
         }
 
         public struct Patches
