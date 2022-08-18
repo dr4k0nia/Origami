@@ -7,24 +7,29 @@ namespace Origami
 {
     public static class Utils
     {
-        private static byte[] Xor(this byte[] data, string name)
+        private static byte[] Xor(this byte[] data, byte[] key)
         {
             for (int i = 0; i < data.Length; i++)
             {
-                data[i] ^= (byte) name[i % name.Length];
+                data[i] ^= key[i % key.Length];
             }
 
             return data;
         }
 
-        public static byte[] Compress(this byte[] data, string key)
+        public static byte[] PreparePayload(this byte[] data, byte[] key)
         {
             using var mStream = new MemoryStream();
             using (var dStream = new DeflateStream(mStream, CompressionLevel.Optimal))
                 dStream.Write(data, 0, data.Length);
-            return mStream.ToArray().Xor(key);
+
+            byte[] result = new byte[mStream.Length + key.Length];
+            mStream.ToArray().Xor(key).CopyTo(result, 0);
+            key.CopyTo(result, result.Length - key.Length);
+
+            return result;
         }
-        
+
         public static void ImportAssemblyTypeReferences(this ModuleDefinition target, ModuleDefinition origin)
         {
             var assembly = origin.Assembly;

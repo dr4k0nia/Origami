@@ -1,5 +1,9 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Security.Policy;
+using System.Text;
 using AsmResolver;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Builder;
@@ -15,7 +19,8 @@ namespace Origami.Packers
         private readonly Mode _mode;
         private readonly ModuleDefinition _stubModule;
 
-        public RelocPacker(Mode mode, byte[] payload, string outputPath) : base(payload, outputPath)
+        public RelocPacker(Mode mode, byte[] payload, string outputPath)
+            : base(payload, outputPath)
         {
             _mode = mode;
             _stubModule = CreateStub(ModuleDefinition.FromBytes(payload));
@@ -34,7 +39,8 @@ namespace Origami.Packers
 
             imageResult.TokenMapping.TryGetNewToken(oldToken, out var newToken);
 
-            var payload = new DataSegment(Payload.Compress(Name));
+            byte[] key = GetKey();
+            var payload = new DataSegment(Payload.PreparePayload(key));
 
             var fileBuilder = new CustomManagedPEFileBuilder(_mode, payload, newToken, patches);
             var peImage = imageResult.ConstructedImage;
@@ -43,7 +49,7 @@ namespace Origami.Packers
             peFile.Write(OutputPath);
         }
 
-        private static void InjectLoader(ModuleDefinition targetModule, Type loaderClass, out IMetadataMember offset)
+        private void InjectLoader(ModuleDefinition targetModule, Type loaderClass, out IMetadataMember offset)
         {
             var sourceModule = ModuleDefinition.FromFile(typeof(Packer).Assembly.Location);
             var cloner = new MemberCloner(targetModule);
@@ -61,10 +67,18 @@ namespace Origami.Packers
             offset = member.Methods.First(m => m.Name == "Main");
 
             var entryPoint = (MethodDefinition) result.ClonedMembers.First(m => m.Name == "Main");
-            entryPoint.Name = ".origami";
+            entryPoint.Name = "<Origami>";
             entryPoint.DeclaringType!.Name = "<Origami>";
 
             targetModule.ManagedEntrypoint = entryPoint;
+        }
+
+        private static byte[] GetKey()
+        {
+            using var provider = new RNGCryptoServiceProvider();
+            byte[] key = new byte[64];
+            provider.GetNonZeroBytes(key);
+            return key;
         }
 
         private Patches GetOffsets()
@@ -80,7 +94,7 @@ namespace Origami.Packers
                 if (instruction.OpCode == CilOpCodes.Ldc_I8)
                 {
                     //if ((ulong)instruction.Operand! == 6969696969L)
-                        patches.OffsetVA = instruction.Offset + instruction.OpCode.Size;
+                    patches.OffsetVA = instruction.Offset + instruction.OpCode.Size;
                 }
 
                 if (!instruction.IsLdcI4())
@@ -102,9 +116,6 @@ namespace Origami.Packers
         {
             public int OffsetVA;
             public int OffsetSize;
-            public int OffsetRva;
         }
-
-
     }
 }
