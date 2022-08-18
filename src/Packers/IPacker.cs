@@ -18,8 +18,6 @@ namespace Origami.Packers
             OutputPath = outputPath;
         }
 
-        protected const string Name = ".origami";
-
         protected byte[] Payload
         {
             get;
@@ -33,9 +31,10 @@ namespace Origami.Packers
         protected static ModuleDefinition CreateStub(ModuleDefinition originModule)
         {
             var stubModule =
-                new ModuleDefinition( originModule.Name, originModule.CorLibTypeFactory.CorLibScope.GetAssembly() as AssemblyReference);
+                new ModuleDefinition(originModule.Name,
+                    originModule.CorLibTypeFactory.CorLibScope.GetAssembly() as AssemblyReference);
 
-            originModule.Assembly.Modules.Insert( 0, stubModule );
+            originModule.Assembly.Modules.Insert(0, stubModule);
 
             stubModule.FileCharacteristics = originModule.FileCharacteristics;
             stubModule.DllCharacteristics = originModule.DllCharacteristics;
