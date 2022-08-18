@@ -1,33 +1,30 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using AsmResolver.DotNet;
 
 namespace Origami
 {
     public static class Utils
     {
-        private static byte[] Xor(this byte[] data, byte[] key)
+        private static byte[] Xor(this byte[] data, string name)
         {
             for (int i = 0; i < data.Length; i++)
             {
-                data[i] ^= key[i % key.Length];
+                data[i] ^= (byte) name[i % name.Length];
             }
 
             return data;
         }
 
-        public static byte[] PreparePayload(this byte[] data, byte[] key)
+        public static byte[] Compress(this byte[] data, string key)
         {
             using var mStream = new MemoryStream();
             using (var dStream = new DeflateStream(mStream, CompressionLevel.Optimal))
                 dStream.Write(data, 0, data.Length);
-
-            byte[] result = new byte[mStream.Length + key.Length];
-            mStream.ToArray().Xor(key).CopyTo(result, 0);
-            key.CopyTo(result, result.Length - key.Length);
-
-            return result;
+            return mStream.ToArray().Xor(key);
         }
 
         public static void ImportAssemblyTypeReferences(this ModuleDefinition target, ModuleDefinition origin)
