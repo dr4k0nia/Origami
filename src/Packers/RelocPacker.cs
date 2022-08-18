@@ -89,25 +89,11 @@ namespace Origami.Packers
 
             var instructions = entryPoint!.CilMethodBody?.Instructions;
 
-            foreach (var instruction in instructions!)
-            {
-                if (instruction.OpCode == CilOpCodes.Ldc_I8)
-                {
-                    //if ((ulong)instruction.Operand! == 6969696969L)
-                    patches.OffsetVA = instruction.Offset + instruction.OpCode.Size;
-                }
+            var target = instructions!.First(i => i.OpCode == CilOpCodes.Ldc_I8);
+            patches.OffsetVA = target.Offset + target.OpCode.Size;
 
-                if (!instruction.IsLdcI4())
-                    continue;
-
-                // Offset for payload length
-                if (instruction.GetLdcI4Constant() == 0x1337c0de)
-                    patches.OffsetSize = instruction.Offset + instruction.OpCode.Size;
-
-                // // Offset for RVA
-                // if (instruction.GetLdcI4Constant() == 0x420c0de)
-                //     patches.OffsetRva = instruction.Offset + instruction.OpCode.Size;
-            }
+            target = instructions.First(i => i.IsLdcI4() && i.GetLdcI4Constant() == 0x1337c0de);
+            patches.OffsetSize = target.Offset + target.OpCode.Size;
 
             return patches;
         }
