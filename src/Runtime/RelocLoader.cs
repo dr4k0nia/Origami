@@ -19,7 +19,8 @@ namespace Origami.Runtime
             // Placeholder for payload size
             byte[] buffer = new byte[0x1337c0de];
 
-            byte[] key = Encoding.UTF8.GetBytes(Assembly.GetCallingAssembly().EntryPoint.Name);
+            string key = typeof(RelocLoader).Assembly.EntryPoint.Name;
+
             fixed (byte* rawData = &buffer[0])
             {
                 for (int i = 0; i < buffer.Length; i++)
