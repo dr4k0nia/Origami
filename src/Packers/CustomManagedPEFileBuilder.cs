@@ -4,6 +4,7 @@ using System.Linq;
 using AsmResolver;
 using AsmResolver.PE;
 using AsmResolver.PE.Debug;
+using AsmResolver.PE.Debug.CodeView;
 using AsmResolver.PE.DotNet;
 using AsmResolver.PE.DotNet.Builder;
 using AsmResolver.PE.DotNet.Cil;
@@ -245,6 +246,21 @@ public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
         // Dont inject DebugData when PESection is used
         if (_mode == Mode.PESection)
             return;
+
+        // Add fake debug entry to hide the payload
+        var data = new RsdsDataSegment
+        {
+            // TODO randomization
+            Path = "C:/Users/GLaDOS/The/Cake/Is/A/Lie.pdb",
+            Guid = Guid.NewGuid(),
+            Age = 1
+        };
+        var entry = new DebugDataEntry(data)
+        {
+            TimeDateStamp = Utils.GetRandomTimestamp()
+        };
+        context.DebugDirectory.AddEntry(entry);
+
 
         ProcessRvasInMetadataTables(context);
         var segment = new CustomDebugDataSegment(DebugDataType.Unknown, _payload);

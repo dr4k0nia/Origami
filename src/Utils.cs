@@ -34,5 +34,18 @@ namespace Origami
             foreach (var ca in assembly.CustomAttributes.Where(ca => ca.Constructor.Module == origin))
                 ca.Constructor = (ICustomAttributeType) importer.ImportMethod(ca.Constructor);
         }
+
+        public static uint GetRandomTimestamp()
+        {
+            var rnd = new Random();
+
+            var from = new DateTime(DateTime.Today.Year - 5, 1, 1);
+            var to = DateTime.Today;
+            var range = to - from;
+
+            var randTimeSpan = new TimeSpan((long) (rnd.NextDouble() * range.Ticks));
+
+            return (uint) (from + randTimeSpan).Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
+        }
     }
 }
