@@ -76,7 +76,7 @@ public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
         contents.Add(context.DotNetSegment);
 
         return new PESection(".origami",
-            SectionFlags.ContentCode | SectionFlags.MemoryExecute | SectionFlags.MemoryRead)
+            SectionFlags.ContentInitializedData | SectionFlags.MemoryRead)
         {
             Contents = contents
         };
