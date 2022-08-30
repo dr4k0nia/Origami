@@ -22,7 +22,7 @@ Some improvements made in version 2:
 - Simplified loader
 
 
-*This blog is refering to the first release of origami which uses a different runtime and packing process. I will write an updated blog post when I find the time*
+*This blog post is based on an [older release of origami](https://github.com/dr4k0nia/Origami/tree/parsing-runtime) which uses a different runtime and packing process. I will write an updated blog post when I find the time*
 <br>
 ~For a detailed explanation of the stub code check out [my blog post](https://dr4k0nia.github.io/dotnet/coding/2021/06/24/Writing-a-Packer.html)~
 
