@@ -2,6 +2,7 @@
 using System.Linq;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Cloning;
+using AsmResolver.PE.File.Headers;
 
 namespace Origami.Packers
 {
@@ -18,8 +19,6 @@ namespace Origami.Packers
             OutputPath = outputPath;
         }
 
-        protected const string Name = ".origami";
-
         protected byte[] Payload
         {
             get;
@@ -33,20 +32,26 @@ namespace Origami.Packers
         protected static ModuleDefinition CreateStub(ModuleDefinition originModule)
         {
             var stubModule =
-                new ModuleDefinition( originModule.Name, originModule.CorLibTypeFactory.CorLibScope.GetAssembly() as AssemblyReference);
+                new ModuleDefinition(originModule.Name,
+                    originModule.CorLibTypeFactory.CorLibScope.GetAssembly() as AssemblyReference);
 
-            originModule.Assembly.Modules.Insert( 0, stubModule );
+            bool isCoreApp = originModule.OriginalTargetRuntime.Name == ".NETCoreApp";
+
+            originModule.Assembly.Modules.Insert(0, stubModule);
 
             stubModule.FileCharacteristics = originModule.FileCharacteristics;
             stubModule.DllCharacteristics = originModule.DllCharacteristics;
             stubModule.EncBaseId = originModule.EncBaseId;
             stubModule.EncId = originModule.EncId;
             stubModule.Generation = originModule.Generation;
-            stubModule.PEKind = originModule.PEKind;
-            stubModule.MachineType = originModule.MachineType;
+
+            // For .NETCoreApp consider installed runtime bitness, reasonable to assume 64bit installation of .NET (Core)
+            stubModule.PEKind = isCoreApp ? OptionalHeaderMagic.Pe32Plus :  originModule.PEKind;
+            stubModule.MachineType = isCoreApp ? MachineType.Amd64 : originModule.MachineType;
+            stubModule.IsBit32Required = !isCoreApp && originModule.IsBit32Required;
+            stubModule.IsBit32Preferred = !isCoreApp && originModule.IsBit32Preferred;
+
             stubModule.RuntimeVersion = originModule.RuntimeVersion;
-            stubModule.IsBit32Required = originModule.IsBit32Required;
-            stubModule.IsBit32Preferred = originModule.IsBit32Preferred;
             stubModule.SubSystem = originModule.SubSystem;
 
             stubModule.ImportAssemblyTypeReferences(originModule);
@@ -75,5 +80,11 @@ namespace Origami.Packers
         }
 
         public abstract void Execute();
+    }
+
+    public enum Mode
+    {
+        PESection = 0x0,
+        DebugDataEntry = 0x1
     }
 }
