@@ -1,11 +1,8 @@
-﻿using System;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Reflection;
-using System.Text;
 
-namespace Origami.Runtime
+namespace Runtime
 {
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     internal static unsafe class RelocLoader
