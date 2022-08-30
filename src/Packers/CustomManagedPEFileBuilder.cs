@@ -17,7 +17,7 @@ using AsmResolver.PE.Relocations;
 
 namespace Origami.Packers;
 
-public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
+public sealed class CustomManagedPEFileBuilder : ManagedPEFileBuilder
 {
     private readonly Mode _mode;
     private readonly DataSegment _payload;
@@ -32,8 +32,11 @@ public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
         _patches = patches;
     }
 
+
+    // Modified to add Base Relocations and patch RVAs in the CIL method body of the loader
     public override PEFile CreateFile(IPEImage image)
     {
+        // Get raw method body of the loader entrypoint
         var rawBody = (CilRawMethodBody) image.DotNetDirectory.Metadata
             .GetStream<TablesStream>()
             .GetTable<MethodDefinitionRow>()
@@ -66,7 +69,7 @@ public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
         return file;
     }
 
-    protected virtual PESection CreatePackerSection(IPEImage image, ManagedPEBuilderContext context)
+    private PESection CreatePackerSection(IPEImage image, ManagedPEBuilderContext context)
     {
         ProcessRvasInMetadataTables(context);
         var contents = new SegmentBuilder();
@@ -91,6 +94,7 @@ public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
         if (context.ImportDirectory.Count > 0)
             contents.Add(context.ImportDirectory.ImportAddressDirectory);
 
+        // Add the DotNetSegment normally when using the DebugDataEntry payload
         if (_mode == Mode.DebugDataEntry)
             contents.Add(context.DotNetSegment);
 
@@ -126,6 +130,8 @@ public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
         };
     }
 
+
+    // Add packer section injection
     protected override IEnumerable<PESection> CreateSections(IPEImage image, ManagedPEBuilderContext context)
     {
         // Always create .text section.
@@ -142,6 +148,7 @@ public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
         if (image.Resources is not null && image.Resources.Entries.Count > 0)
             sections.Add(CreateRsrcSection(image, context));
 
+        // Inject packer section if PESection payload was chosen
         if (_mode == Mode.PESection)
             sections.Add(CreatePackerSection(image, context));
 
@@ -238,6 +245,8 @@ public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
         return modules;
     }
 
+
+    // Modified to inject fake RSDS DebugDataEntry and payload as custom DebugDataEntry
     private void CreateDebugDirectory(IPEImage image, ManagedPEBuilderContext context)
     {
         for (int i = 0; i < image.DebugData.Count; i++)
@@ -261,7 +270,7 @@ public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
         };
         context.DebugDirectory.AddEntry(entry);
 
-
+        // Process RVAs and inject payload as custom DebugDataEntry
         ProcessRvasInMetadataTables(context);
         var segment = new CustomDebugDataSegment(DebugDataType.Unknown, _payload);
         var payload = new DebugDataEntry(segment);
@@ -275,7 +284,7 @@ public class CustomManagedPEFileBuilder : ManagedPEFileBuilder
     /// <param name="image">The image to build.</param>
     /// <param name="context">The working space of the builder.</param>
     /// <returns>The section.</returns>
-    protected virtual PESection CreateSDataSection(IPEImage image, ManagedPEBuilderContext context)
+    private PESection CreateSDataSection(IPEImage image, ManagedPEBuilderContext context)
     {
         var contents = new SegmentBuilder();
 
