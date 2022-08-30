@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using AsmResolver;
@@ -6,7 +7,6 @@ using AsmResolver.DotNet;
 using AsmResolver.DotNet.Builder;
 using AsmResolver.DotNet.Cloning;
 using AsmResolver.PE.DotNet.Cil;
-using Origami.Runtime;
 
 namespace Origami.Packers
 {
@@ -27,7 +27,7 @@ namespace Origami.Packers
         public override void Execute()
         {
             _key = RandomString();
-            InjectLoader(_stubModule, typeof(RelocLoader), out var oldToken);
+            InjectLoader(_stubModule, out var oldToken);
             _stubModule.IsILOnly = false;
 
             var patches = GetOffsets();
@@ -47,11 +47,12 @@ namespace Origami.Packers
             peFile.Write(OutputPath);
         }
 
-        private void InjectLoader(ModuleDefinition targetModule, Type loaderClass, out IMetadataMember offset)
+        private void InjectLoader(ModuleDefinition targetModule, out IMetadataMember offset)
         {
-            var sourceModule = ModuleDefinition.FromFile(typeof(Packer).Assembly.Location);
+            string baseDirectory = AppContext.BaseDirectory;
+            var sourceModule = ModuleDefinition.FromFile(Path.Combine(baseDirectory, "Runtime.dll"));
             var cloner = new MemberCloner(targetModule);
-            var loader = (TypeDefinition) sourceModule.LookupMember(loaderClass.MetadataToken);
+            var loader = sourceModule.GetAllTypes().First(t => t.Name == "RelocLoader");
             cloner.Include(loader, true);
             var result = cloner.Clone();
 

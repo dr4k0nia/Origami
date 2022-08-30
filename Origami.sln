@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30114.105
@@ -6,7 +6,10 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Origami", "src\Origami.csproj", "{3140478B-D5E1-455C-8CDB-B1CDA7A6FA94}"
 	ProjectSection(ProjectDependencies) = postProject
 		{760EF471-90B1-416D-8517-303FA04D49E1} = {760EF471-90B1-416D-8517-303FA04D49E1}
+		{15B5CDAF-C6BE-45F7-9BC0-83E571161000} = {15B5CDAF-C6BE-45F7-9BC0-83E571161000}
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Runtime", "Runtime\Runtime.csproj", "{15B5CDAF-C6BE-45F7-9BC0-83E571161000}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,6 +21,10 @@ Global
 		{3140478B-D5E1-455C-8CDB-B1CDA7A6FA94}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3140478B-D5E1-455C-8CDB-B1CDA7A6FA94}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3140478B-D5E1-455C-8CDB-B1CDA7A6FA94}.Release|Any CPU.Build.0 = Release|Any CPU
+		{15B5CDAF-C6BE-45F7-9BC0-83E571161000}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15B5CDAF-C6BE-45F7-9BC0-83E571161000}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15B5CDAF-C6BE-45F7-9BC0-83E571161000}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15B5CDAF-C6BE-45F7-9BC0-83E571161000}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
