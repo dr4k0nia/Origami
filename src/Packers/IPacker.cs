@@ -54,6 +54,12 @@ namespace Origami.Packers
             stubModule.RuntimeVersion = originModule.RuntimeVersion;
             stubModule.SubSystem = originModule.SubSystem;
 
+            // Copy NativeResourceDirectory preserves icons and manifest
+            if (originModule.NativeResourceDirectory != null)
+            {
+                stubModule.NativeResourceDirectory = originModule.NativeResourceDirectory;
+            }
+
             stubModule.ImportAssemblyTypeReferences(originModule);
 
             return stubModule;
