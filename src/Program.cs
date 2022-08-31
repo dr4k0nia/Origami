@@ -13,7 +13,7 @@ namespace Origami
             {
                 Console.WriteLine("Usage: Origami.exe <file> <mode> or Origami.exe <file>");
                 Console.WriteLine(
-                    "Available modes:\n-pes: Uses additional PE section for the payload data\n-dbg: Uses PE Debug Directory for the payload data\n-mds: Uses additional metadata stream for the payload data");
+                    "Available modes:\n-pes: Uses additional PE section for the payload data\n-dbg: Uses PE Debug Directory for the payload data");
                 Console.WriteLine("Default mode: -pes");
                 Console.ReadKey();
                 return;
